@@ -43,7 +43,7 @@ public class PigTalismanCard : TalismanCard
 
         if (HasTalismanRelic<PigTalisman>())
         {
-            await CreatureCmd.Damage(choiceContext, targets, DynamicVars.Damage.BaseValue, ValueProp.Move, Owner.Creature, this);
+            await CreatureCmd.Damage(choiceContext, targets, DynamicVars.Damage.BaseValue, ValueProp.Move, Owner.Creature, this, cardPlay);
             foreach (Creature target in targets)
             {
                 await ApplyPigDebuffEffects(choiceContext, target);

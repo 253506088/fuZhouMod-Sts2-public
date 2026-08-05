@@ -174,6 +174,7 @@ public static class RobTalismanEventHelper
             EndureDamageAmount,
             ValueProp.Unblockable | ValueProp.Unpowered,
             null,
+            null,
             null);
 
         IReadOnlyList<CardModel> curses = PickRandomCurses(player, RandomCurseCount);

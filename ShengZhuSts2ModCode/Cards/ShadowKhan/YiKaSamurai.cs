@@ -48,7 +48,7 @@ public class YiKaSamurai : BaseShadowKhanCard
                 return;
             }
 
-            await ShadowKhanAttack(choiceContext, cardPlay.Target);
+            await ShadowKhanAttack(choiceContext, cardPlay.Target, cardPlay);
 
             if (ShadowKhanToken.IsYiKaBlankMode(Owner))
             {
@@ -81,7 +81,7 @@ public class YiKaSamurai : BaseShadowKhanCard
             }
 
             await CardCmd.Exhaust(choiceContext, selected);
-            await ResolveExhaustedCardEffect(choiceContext, cardPlay.Target, selected);
+            await ResolveExhaustedCardEffect(choiceContext, cardPlay.Target, selected, cardPlay);
         }
         finally
         {
@@ -129,8 +129,9 @@ public class YiKaSamurai : BaseShadowKhanCard
     /// <param name="choiceContext">当前选择上下文。</param>
     /// <param name="target">出牌目标。</param>
     /// <param name="selected">被消耗的手牌。</param>
+    /// <param name="cardPlay">本次出牌信息。</param>
     /// <returns>异步任务。</returns>
-    private async Task ResolveExhaustedCardEffect(PlayerChoiceContext choiceContext, Creature target, CardModel selected)
+    private async Task ResolveExhaustedCardEffect(PlayerChoiceContext choiceContext, Creature target, CardModel selected, CardPlay cardPlay)
     {
         switch (selected.Type)
         {
@@ -139,7 +140,7 @@ public class YiKaSamurai : BaseShadowKhanCard
                 int halfDamage = cardDamage / 2;
                 if (halfDamage > 0)
                 {
-                    await ShadowKhanAttack(choiceContext, target, halfDamage);
+                    await ShadowKhanAttack(choiceContext, target, halfDamage, cardPlay);
                 }
                 break;
 

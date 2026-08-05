@@ -79,7 +79,7 @@ public class NiJiaNinja : BaseShadowKhanCard, IActualEnemyTargetProvider
 
             for (int i = 0; i < hitCount; i++)
             {
-                IReadOnlyList<Creature> attackedTargets = await ShadowKhanAttackMany(choiceContext, targets, hitDamage);
+                IReadOnlyList<Creature> attackedTargets = await ShadowKhanAttackMany(choiceContext, targets, hitDamage, cardPlay);
                 if (attackedTargets.Count == 0)
                 {
                     break;

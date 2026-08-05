@@ -41,7 +41,7 @@ public class LaZuoBlade : BaseShadowKhanCard
             }
 
             int hpBefore = cardPlay.Target.CurrentHp;
-            await ShadowKhanAttack(choiceContext, cardPlay.Target, CalculateLaZuoDamage(cardPlay.Target));
+            await ShadowKhanAttack(choiceContext, cardPlay.Target, CalculateLaZuoDamage(cardPlay.Target), cardPlay);
             int hpAfter = cardPlay.Target.CurrentHp;
 
             if (hpAfter < hpBefore)

@@ -48,6 +48,7 @@ public static class ShivaBraceletEventHelper
             AhFuHealthLoss,
             ValueProp.Unblockable | ValueProp.Unpowered,
             player.Creature,
+            null,
             null);
 
         await GiveShivaBracelet(player);

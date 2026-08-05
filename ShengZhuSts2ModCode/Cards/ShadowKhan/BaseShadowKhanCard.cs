@@ -141,6 +141,7 @@ public abstract class BaseShadowKhanCard(int cost, CardType type, TargetType tar
             rawDamage,
             ValueProp.Move,
             this,
+            null,
             ModifyDamageHookType.All,
             CardPreviewMode.Normal,
             out _);
@@ -242,20 +243,25 @@ public abstract class BaseShadowKhanCard(int cost, CardType type, TargetType tar
     /// </summary>
     /// <param name="choiceContext">选择上下文。</param>
     /// <param name="target">攻击目标。</param>
+    /// <param name="cardPlay">本次出牌信息。</param>
     /// <returns>异步任务。</returns>
-    protected async Task ShadowKhanAttack(PlayerChoiceContext choiceContext, Creature target)
+    protected async Task ShadowKhanAttack(PlayerChoiceContext choiceContext, Creature target, CardPlay cardPlay)
     {
-        await ShadowKhanAttack(choiceContext, target, CalculateShadowKhanDamage());
+        await ShadowKhanAttack(choiceContext, target, CalculateShadowKhanDamage(), cardPlay);
     }
 
     /// <summary>
     /// 黑影兵团专用攻击：使用指定伤害值结算，保持虚弱图标显示不变。
     /// </summary>
-    protected async Task ShadowKhanAttack(PlayerChoiceContext choiceContext, Creature target, int damage)
+    /// <param name="choiceContext">选择上下文。</param>
+    /// <param name="target">攻击目标。</param>
+    /// <param name="damage">本段攻击伤害。</param>
+    /// <param name="cardPlay">本次出牌信息。</param>
+    protected async Task ShadowKhanAttack(PlayerChoiceContext choiceContext, Creature target, int damage, CardPlay cardPlay)
     {
         if (IsDemonCodexActive())
         {
-            await PoweredShadowKhanAttack(choiceContext, target, damage);
+            await PoweredShadowKhanAttack(choiceContext, target, damage, cardPlay);
             return;
         }
 
@@ -263,9 +269,9 @@ public abstract class BaseShadowKhanCard(int cost, CardType type, TargetType tar
         bool targetHadBlackHand = target.HasPower<BlackHandPower>();
         int finalDamage = ApplyOxTalismanDamage(damage);
         int imbalanceAdjustedDamage = TalismanImbalancePlayerPower.ModifyCardDamageForPlayer(Owner, this, finalDamage);
-        int flutterAdjustedDamage = ApplyFlutterDamageReduction(target, imbalanceAdjustedDamage, creature);
+        int flutterAdjustedDamage = ApplyFlutterDamageReduction(target, imbalanceAdjustedDamage, creature, cardPlay);
         ShengZhuLogHelper.VerboseCombatInfo(() => $"【黑影兵团攻击】卡牌={Id.Entry}，卡面基础伤害={PrintedBaseDamage}，影噬={GetDominionAmount()}，基础结算伤害={damage}，牛符咒后={finalDamage}，虎符咒失衡后={imbalanceAdjustedDamage}，最终伤害={flutterAdjustedDamage}");
-        var damageResults = (await CreatureCmd.Damage(choiceContext, target, flutterAdjustedDamage, ValueProp.Move | ValueProp.Unpowered, creature, this)).ToList();
+        var damageResults = (await CreatureCmd.Damage(choiceContext, target, flutterAdjustedDamage, ValueProp.Move | ValueProp.Unpowered, creature, this, cardPlay)).ToList();
         await ResolveFlutterAfterShadowKhanAttack(choiceContext, target, damageResults, creature);
         if (targetHadBlackHand && !BlackHandCardHelper.IsLivingCreature(target))
         {
@@ -281,8 +287,9 @@ public abstract class BaseShadowKhanCard(int cost, CardType type, TargetType tar
     /// <param name="choiceContext">选择上下文。</param>
     /// <param name="targets">本段攻击候选目标。</param>
     /// <param name="damage">基础伤害+影噬后的伤害。</param>
+    /// <param name="cardPlay">本次出牌信息。</param>
     /// <returns>本段实际发起攻击的目标列表。</returns>
-    protected async Task<IReadOnlyList<Creature>> ShadowKhanAttackMany(PlayerChoiceContext choiceContext, IEnumerable<Creature> targets, int damage)
+    protected async Task<IReadOnlyList<Creature>> ShadowKhanAttackMany(PlayerChoiceContext choiceContext, IEnumerable<Creature> targets, int damage, CardPlay cardPlay)
     {
         List<Creature> livingTargets = targets.Where(BlackHandCardHelper.IsLivingCreature).ToList();
         if (livingTargets.Count == 0)
@@ -292,17 +299,17 @@ public abstract class BaseShadowKhanCard(int cost, CardType type, TargetType tar
 
         if (livingTargets.Count == 1)
         {
-            await ShadowKhanAttack(choiceContext, livingTargets[0], damage);
+            await ShadowKhanAttack(choiceContext, livingTargets[0], damage, cardPlay);
             return livingTargets;
         }
 
         if (IsDemonCodexActive())
         {
-            await PoweredShadowKhanAttackMany(choiceContext, livingTargets, damage);
+            await PoweredShadowKhanAttackMany(choiceContext, livingTargets, damage, cardPlay);
             return livingTargets;
         }
 
-        await UnpoweredShadowKhanAttackMany(choiceContext, livingTargets, damage);
+        await UnpoweredShadowKhanAttackMany(choiceContext, livingTargets, damage, cardPlay);
         return livingTargets;
     }
 
@@ -312,7 +319,8 @@ public abstract class BaseShadowKhanCard(int cost, CardType type, TargetType tar
     /// <param name="choiceContext">选择上下文。</param>
     /// <param name="targets">本段实际攻击目标。</param>
     /// <param name="damage">基础伤害+影噬后的伤害。</param>
-    private async Task UnpoweredShadowKhanAttackMany(PlayerChoiceContext choiceContext, IReadOnlyList<Creature> targets, int damage)
+    /// <param name="cardPlay">本次出牌信息。</param>
+    private async Task UnpoweredShadowKhanAttackMany(PlayerChoiceContext choiceContext, IReadOnlyList<Creature> targets, int damage, CardPlay cardPlay)
     {
         var creature = Owner?.Creature;
         int finalDamage = ApplyOxTalismanDamage(damage);
@@ -322,7 +330,7 @@ public abstract class BaseShadowKhanCard(int cost, CardType type, TargetType tar
             {
                 Target = target,
                 TargetHadBlackHand = target.HasPower<BlackHandPower>(),
-                Damage = ApplyFlutterDamageReduction(target, imbalanceAdjustedDamage, creature)
+                Damage = ApplyFlutterDamageReduction(target, imbalanceAdjustedDamage, creature, cardPlay)
             })
             .ToList();
 
@@ -330,7 +338,7 @@ public abstract class BaseShadowKhanCard(int cost, CardType type, TargetType tar
         {
             List<Creature> groupTargets = damageGroup.Select(state => state.Target).ToList();
             ShengZhuLogHelper.VerboseCombatInfo(() => $"【黑影兵团群体攻击】卡牌={Id.Entry}，目标数={groupTargets.Count}，目标=[{string.Join(",", groupTargets.Select(target => target.Name))}]，卡面基础伤害={PrintedBaseDamage}，影噬={GetDominionAmount()}，基础结算伤害={damage}，牛符咒后={finalDamage}，虎符咒失衡后={imbalanceAdjustedDamage}，最终伤害={damageGroup.Key}");
-            IReadOnlyList<DamageResult> damageResults = (await CreatureCmd.Damage(choiceContext, groupTargets, damageGroup.Key, ValueProp.Move | ValueProp.Unpowered, creature, this)).ToList();
+            IReadOnlyList<DamageResult> damageResults = (await CreatureCmd.Damage(choiceContext, groupTargets, damageGroup.Key, ValueProp.Move | ValueProp.Unpowered, creature, this, cardPlay)).ToList();
             foreach (var state in damageGroup)
             {
                 await ResolveFlutterAfterShadowKhanAttack(choiceContext, state.Target, damageResults, creature);
@@ -354,12 +362,13 @@ public abstract class BaseShadowKhanCard(int cost, CardType type, TargetType tar
     /// <param name="choiceContext">选择上下文。</param>
     /// <param name="target">攻击目标。</param>
     /// <param name="damage">基础伤害+影噬后的伤害。</param>
-    private async Task PoweredShadowKhanAttack(PlayerChoiceContext choiceContext, Creature target, int damage)
+    /// <param name="cardPlay">本次出牌信息。</param>
+    private async Task PoweredShadowKhanAttack(PlayerChoiceContext choiceContext, Creature target, int damage, CardPlay cardPlay)
     {
         var creature = Owner?.Creature;
         bool targetHadBlackHand = target.HasPower<BlackHandPower>();
         ShengZhuLogHelper.VerboseCombatInfo(() => $"【黑影兵团攻击】恶魔法典生效：卡牌={Id.Entry}，卡面基础伤害={PrintedBaseDamage}，影噬={GetDominionAmount()}，进入常规修正前伤害={damage}。");
-        await CreatureCmd.Damage(choiceContext, target, damage, ValueProp.Move, creature, this);
+        await CreatureCmd.Damage(choiceContext, target, damage, ValueProp.Move, creature, this, cardPlay);
         if (targetHadBlackHand && !BlackHandCardHelper.IsLivingCreature(target))
         {
             await BountyPower.ResolveRewardForTarget(choiceContext, Owner, target, true);
@@ -374,7 +383,8 @@ public abstract class BaseShadowKhanCard(int cost, CardType type, TargetType tar
     /// <param name="choiceContext">选择上下文。</param>
     /// <param name="targets">本段实际攻击目标。</param>
     /// <param name="damage">进入常规修正前的伤害。</param>
-    private async Task PoweredShadowKhanAttackMany(PlayerChoiceContext choiceContext, IReadOnlyList<Creature> targets, int damage)
+    /// <param name="cardPlay">本次出牌信息。</param>
+    private async Task PoweredShadowKhanAttackMany(PlayerChoiceContext choiceContext, IReadOnlyList<Creature> targets, int damage, CardPlay cardPlay)
     {
         var creature = Owner?.Creature;
         var targetStates = targets
@@ -386,7 +396,7 @@ public abstract class BaseShadowKhanCard(int cost, CardType type, TargetType tar
             .ToList();
 
         ShengZhuLogHelper.VerboseCombatInfo(() => $"【黑影兵团群体攻击】恶魔法典生效：卡牌={Id.Entry}，目标数={targets.Count}，目标=[{string.Join(",", targets.Select(target => target.Name))}]，卡面基础伤害={PrintedBaseDamage}，影噬={GetDominionAmount()}，进入常规修正前伤害={damage}。");
-        await CreatureCmd.Damage(choiceContext, targets, damage, ValueProp.Move, creature, this);
+        await CreatureCmd.Damage(choiceContext, targets, damage, ValueProp.Move, creature, this, cardPlay);
 
         foreach (var state in targetStates)
         {
@@ -418,7 +428,12 @@ public abstract class BaseShadowKhanCard(int cost, CardType type, TargetType tar
     /// <summary>
     /// 黑影兵团攻击不走普通力量/虚弱链路，但仍应被原版振翅按攻击伤害减半。
     /// </summary>
-    private int ApplyFlutterDamageReduction(Creature target, int damage, Creature? dealer)
+    /// <param name="target">本段攻击目标。</param>
+    /// <param name="damage">进入振翅修正前的伤害。</param>
+    /// <param name="dealer">造成伤害的生物。</param>
+    /// <param name="cardPlay">本次出牌信息。</param>
+    /// <returns>应用振翅减伤后的伤害。</returns>
+    private int ApplyFlutterDamageReduction(Creature target, int damage, Creature? dealer, CardPlay cardPlay)
     {
         if (damage <= 0)
         {
@@ -431,7 +446,7 @@ public abstract class BaseShadowKhanCard(int cost, CardType type, TargetType tar
             return damage;
         }
 
-        decimal multiplier = flutterPower.ModifyDamageMultiplicative(target, damage, ValueProp.Move, dealer, this);
+        decimal multiplier = flutterPower.ModifyDamageMultiplicative(target, damage, ValueProp.Move, dealer, this, cardPlay);
         int reducedDamage = Math.Max(0, (int)Math.Floor(damage * multiplier));
         ShengZhuLogHelper.VerboseCombatInfo(() => $"【黑影兵团攻击】触发振翅减伤：卡牌={Id.Entry}，目标={target.Name}，减伤前={damage}，倍率={multiplier}，减伤后={reducedDamage}。");
         return reducedDamage;

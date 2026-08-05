@@ -3,6 +3,7 @@ using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Localization.DynamicVars;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.ValueProps;
 
 namespace ShengZhuSts2Mod.ShengZhuSts2ModCode.Cards.TeamJackie;
 
@@ -50,7 +51,7 @@ public class TigerTalismanYang : TeamJackieCard
         }
 
         decimal damage = ((CalculatedVar)DynamicVars["CalculatedDamage"]).Calculate(cardPlay.Target);
-        await CommonActions.CardAttack(this, cardPlay.Target, damage).Execute(choiceContext);
+        await CommonActions.CardAttack(this, cardPlay, cardPlay.Target, damage, ValueProp.Move).Execute(choiceContext);
     }
 
     /// <summary>

@@ -88,7 +88,7 @@ public class MingTaShadow : BaseShadowKhanCard
             int baseAndDominionDamage = CalculateShadowKhanDamage();
             int totalDamage = baseAndDominionDamage + ShadowKhanHelper.GetMingTaTotalDamage();
             MainFile.Logger.Info($"【明塔噬影团】造成伤害={totalDamage}（基础+影噬={baseAndDominionDamage}，历史累计={ShadowKhanHelper.GetMingTaTotalDamage()}）");
-            await ShadowKhanAttack(choiceContext, cardPlay.Target, totalDamage);
+            await ShadowKhanAttack(choiceContext, cardPlay.Target, totalDamage, cardPlay);
 
             if (consumedCardDamage > 0)
             {

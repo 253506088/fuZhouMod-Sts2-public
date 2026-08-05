@@ -40,7 +40,7 @@ public class BaTeBat : BaseShadowKhanCard
                 return;
             }
 
-            await ShadowKhanAttack(choiceContext, cardPlay.Target);
+            await ShadowKhanAttack(choiceContext, cardPlay.Target, cardPlay);
             await CardPileCmd.Draw(choiceContext, (int)DynamicVars["Magic"].BaseValue, Owner);
 
             var curse = cardPlay.Target.GetPower<LeiSuCursePower>();

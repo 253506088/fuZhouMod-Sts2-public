@@ -181,6 +181,7 @@ public class PigTalisman : ShengZhuSts2ModRelic, ITalismanRightClickable, ITalis
                 blockAmount,
                 ValueProp.Unpowered,
                 Owner!.Creature,
+                null,
                 null);
             removed = true;
         }
@@ -256,7 +257,7 @@ public class PigTalisman : ShengZhuSts2ModRelic, ITalismanRightClickable, ITalis
             Flash();
             foreach (Creature adjacent in adjacentTargets)
             {
-                await CreatureCmd.Damage(choiceContext, adjacent, splashDamage, ValueProp.Unpowered, Owner.Creature, cardPlay.Card);
+                await CreatureCmd.Damage(choiceContext, adjacent, splashDamage, ValueProp.Unpowered, Owner.Creature, cardPlay.Card, cardPlay);
             }
         }
     }

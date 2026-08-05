@@ -40,7 +40,7 @@ public class ManNiMantis : BaseShadowKhanCard
                 return;
             }
 
-            await ShadowKhanAttack(choiceContext, cardPlay.Target);
+            await ShadowKhanAttack(choiceContext, cardPlay.Target, cardPlay);
 
             int extraHits = 0;
             var target = cardPlay.Target;
@@ -67,7 +67,7 @@ public class ManNiMantis : BaseShadowKhanCard
 
             for (int i = 0; i < extraHits; i++)
             {
-                await ShadowKhanAttack(choiceContext, cardPlay.Target);
+                await ShadowKhanAttack(choiceContext, cardPlay.Target, cardPlay);
             }
         }
         finally

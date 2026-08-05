@@ -63,7 +63,7 @@ public class LaserEyes : AhFuCard, IActualEnemyTargetProvider
             IReadOnlyList<Creature> opponents = BlackHandCardHelper.GetLivingOpponents(this);
             decimal damage = DynamicVars.Damage.BaseValue;
 
-            await CreatureCmd.Damage(choiceContext, opponents, damage, ValueProp.Move, Owner.Creature, this);
+            await CreatureCmd.Damage(choiceContext, opponents, damage, ValueProp.Move, Owner.Creature, this, cardPlay);
 
             foreach (Creature creature in opponents)
             {

@@ -3,6 +3,7 @@ using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Localization.DynamicVars;
+using MegaCrit.Sts2.Core.ValueProps;
 
 namespace ShengZhuSts2Mod.ShengZhuSts2ModCode.Cards;
 
@@ -30,7 +31,7 @@ public class AxeCutsTree : AhFuCard
 
         // 通过 CalculatedVar 获取针对目标计算后的最终伤害（含力量、易伤、格挡加成等）
         decimal damage = ((CalculatedVar)DynamicVars["CalculatedDamage"]).Calculate(cardPlay.Target);
-        await CommonActions.CardAttack(this, cardPlay.Target, damage).Execute(choiceContext);
+        await CommonActions.CardAttack(this, cardPlay, cardPlay.Target, damage, ValueProp.Move).Execute(choiceContext);
 
         await ResolveBountyRewards(choiceContext);
     }
