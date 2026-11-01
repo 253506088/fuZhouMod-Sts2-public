@@ -73,7 +73,7 @@ public class NothingLackingPower : ShengZhuSts2ModPower
     /// </summary>
     public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, MegaCrit.Sts2.Core.Combat.CombatSide side, IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature> participants)
     {
-        if (side != MegaCrit.Sts2.Core.Combat.CombatSide.Player || Owner == null || Owner.IsDead)
+        if (side != MegaCrit.Sts2.Core.Combat.CombatSide.Player || Owner == null || Owner.IsDead || !participants.Contains(Owner))
         {
             return;
         }

@@ -964,7 +964,7 @@ public class EarthPrisonPrepPower : ShengZhuSts2ModPower
     /// </summary>
     public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature> participants)
     {
-        if (Owner.Side != side)
+        if (Owner == null || Owner.Side != side || !participants.Contains(Owner))
         {
             return;
         }
@@ -1023,7 +1023,7 @@ public class MoonUncapPower : ShengZhuSts2ModPower
     /// <param name="combatState">当前战斗状态。</param>
     public override async Task BeforeSideTurnStart(PlayerChoiceContext choiceContext, CombatSide side, IReadOnlyList<MegaCrit.Sts2.Core.Entities.Creatures.Creature> participants, ICombatState combatState)
     {
-        if (Owner.Side != side)
+        if (Owner == null || Owner.Side != side || !participants.Contains(Owner))
         {
             return;
         }

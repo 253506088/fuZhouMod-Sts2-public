@@ -41,8 +41,8 @@ public class TigerTalismanYin : TeamJackieCard
     /// <returns>本次格挡数。</returns>
     private static decimal CalculateBlock(CardModel card)
     {
-        int handCount = card.Owner?.PlayerCombatState?.Hand.Cards.Count ?? 0;
-        int otherHandCount = Math.Max(0, handCount - 1);
+        // 出牌结算时本牌已经离开手牌；只排除仍在手牌中的本牌实例。
+        int otherHandCount = card.Owner?.PlayerCombatState?.Hand.Cards.Count(other => !ReferenceEquals(other, card)) ?? 0;
         int perCard = (int)card.DynamicVars["Magic"].BaseValue;
         int maxBlock = (int)card.DynamicVars["MaxBlock"].BaseValue;
         return Math.Min(maxBlock, otherHandCount * perCard);

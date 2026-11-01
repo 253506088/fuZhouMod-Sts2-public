@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="78" height="154" viewBox="0 0 78 154">
+<defs><linearGradient id="sleeve" x2="1" y2="0"><stop stop-color="#abbc9d"/><stop offset=".5" stop-color="#f6efd5"/><stop offset="1" stop-color="#e3dfc1"/></linearGradient></defs>
+<g stroke="#29382e" stroke-width="3" stroke-linejoin="round" stroke-linecap="round">
+<path d="M29 9q-23 6-22 32l3 49L2 117q23 14 57-2l-9-26 4-47q9-26-7-32Z" fill="url(#sleeve)"/>
+<path d="M16 109l-1 19 12 12 8-4 15-8 2-20Z" fill="#dbc492"/>
+<path d="M24 126l-5 13q0 11 5 9l8-17M34 130l-3 18q3 6 6 0l6-19M44 127l-2 16q3 5 6-1l5-17M17 123l-6 7" fill="#dcc798" stroke-width="2"/>
+<path d="M13 108q21 10 41-1M25 36l-5 55M43 47l-2 48M11 82l6 12" fill="none" stroke="#889a7b" stroke-width="2"/>
+<path d="M18 25q11-10 21-8" fill="none" stroke="#fff9de" stroke-width="4"/>
+</g></svg>

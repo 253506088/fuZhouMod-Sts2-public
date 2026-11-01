@@ -92,7 +92,7 @@ public static class PanKuMapMarkerPatch
             }
 
             int refreshed = 0;
-            foreach (var player in runState.Players)
+            foreach (var player in runState.Players.OrderBy(player => player.NetId))
             {
                 PanKuBox? panKuBox = player.GetRelic<PanKuBox>();
                 if (panKuBox == null)

@@ -35,6 +35,9 @@ internal static class GrandMageDadMoveIds
     /// </summary>
     public const string UltimateSealExecute = "ULTIMATE_SEAL_EXECUTE";
 
+    /// <summary>吟唱被打破后真实跳过进攻的硬直回合。</summary>
+    public const string Stagger = "SEAL_BROKEN_STAGGER";
+
     /// <summary>
     /// 副意图：无。
     /// </summary>

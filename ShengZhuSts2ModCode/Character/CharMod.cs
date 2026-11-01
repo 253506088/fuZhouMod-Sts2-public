@@ -7,6 +7,9 @@ using ShengZhuSts2Mod.ShengZhuSts2ModCode.Helpers;
 using ShengZhuSts2Mod.ShengZhuSts2ModCode.Powers;
 using ShengZhuSts2Mod.ShengZhuSts2ModCode.Relics;
 using ShengZhuSts2Mod.ShengZhuSts2ModCode.Services;
+using ShengZhuSts2Mod.ShengZhuSts2ModCode.Visuals;
+using MegaCrit.Sts2.Core.Entities.Creatures;
+using MegaCrit.Sts2.Core.ValueProps;
 using Godot;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Combat;
@@ -86,8 +89,8 @@ public class ShengZhu : PlaceholderCharacterModel
     public override string CustomCharacterSelectBg => $"{MainFile.ResPath}/scenes/shengzhu/char_select_bg_shengzhu.tscn";
     // 角色图标场景。
     public override string CustomIconPath => $"{MainFile.ResPath}/scenes/shengzhu/shengzhu_icon.tscn";
-    // 战斗角色模型场景：有皮肤资源时优先使用皮肤，没有则回退到圣主本体。
-    public override string CustomVisualPath => ResourceLoader.Exists(SkinVisualPath) ? SkinVisualPath : DefaultVisualPath;
+    // 战斗固定使用完整重制模型，避免旧皮肤资源无声覆盖本体动画。
+    public override string CustomVisualPath => DefaultVisualPath;
     // 休息处专用展示场景：固定使用圣主本体资源，避免皮肤 Mod 的普通 Node2D 场景被当作休息处角色节点加载。
     public override string CustomRestSiteAnimPath => RestSiteVisualPath;
     //public override string CustomRestSiteAnimPath => ResourceLoader.Exists(SkinRestSiteVisualPath) ? SkinRestSiteVisualPath : RestSiteVisualPath;
@@ -137,8 +140,39 @@ public class ShengZhu : PlaceholderCharacterModel
             return Task.CompletedTask;
         }
 
-        BlackHandCardHelper.RecordPlayedCard(cardPlay.Card);
-        AttackCardPlayHelper.RecordPlayedCard(cardPlay.Card);
+        BlackHandCardHelper.RecordCardPlay(cardPlay);
+        AttackCardPlayHelper.RecordCardPlay(cardPlay);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>出牌时向拥有者自己的模型发送动画；不等待画面，不修改同步状态。</summary>
+    public override Task BeforeCardPlayed(CardPlay cardPlay)
+    {
+        if (cardPlay.Card.Owner?.Character is ShengZhu)
+            ShengZhuTrueFormVisualService.PlayCard(cardPlay.Card);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>实际受伤时播放短促后仰，不把队友受击当作自己的受击。</summary>
+    public override Task AfterDamageReceived(PlayerChoiceContext choiceContext, Creature target, DamageResult result, ValueProp props, Creature? dealer, CardModel? cardSource)
+    {
+        if (target.Player?.Character is ShengZhu && target.IsAlive && result.TotalDamage > 0)
+            ShengZhuTrueFormVisualService.Play(target.Player, "hurt");
+        return Task.CompletedTask;
+    }
+
+    /// <summary>角色死亡后锁定消散姿态，不被后来的效果通知恢复待机。</summary>
+    public override Task AfterDeath(PlayerChoiceContext choiceContext, Creature creature, bool wasRemovalPrevented, float deathAnimLength)
+    {
+        if (!wasRemovalPrevented && creature.Player?.Character is ShengZhu && creature.IsDead)
+            ShengZhuTrueFormVisualService.Play(creature.Player, "death");
+        return Task.CompletedTask;
+    }
+
+    /// <summary>结束战斗时播放存活角色的收势动作，不延迟地图和奖励流程。</summary>
+    public override Task AfterCombatEnd(MegaCrit.Sts2.Core.Rooms.CombatRoom room)
+    {
+        ShengZhuTrueFormVisualService.PlayVictory();
         return Task.CompletedTask;
     }
 

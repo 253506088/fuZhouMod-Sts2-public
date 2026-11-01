@@ -51,7 +51,10 @@ public abstract class BlackHandGangCard(int cost, CardType type, CardRarity rari
     /// </summary>
     public override Task AfterPlayerTurnStart(PlayerChoiceContext choiceContext, MegaCrit.Sts2.Core.Entities.Players.Player player)
     {
-        _lastPlayedBeforeThis = null;
+        if (Owner == player)
+        {
+            _lastPlayedBeforeThis = null;
+        }
         return Task.CompletedTask;
     }
 

@@ -1,4 +1,11 @@
 {
+  "SHENGZHUSTS2MOD-GRAND_MAGE_TRIAL_EVENT.title": "正气试炼",
+  "SHENGZHUSTS2MOD-GRAND_MAGE_TRIAL_EVENT.pages.INITIAL.description": "尖塔深处，符纸围成了一座八卦阵。老爹推了推眼镜，挡在圣主面前。\n\n“还有一件事！带着这么多黑气上去，可不能只会蛮干。让老爹看看，你们能不能破开这五行阵！”\n\n这是一场可选的高难度挑战。老爹会施加阵法、暂时封存符咒；打破吟唱护盾可解除全队封存并让他硬直。战斗失败仍会结束本局。你们也可以现在离开。",
+  "SHENGZHUSTS2MOD-GRAND_MAGE_TRIAL_EVENT.pages.INITIAL.options.CHALLENGE.title": "接受试炼",
+  "SHENGZHUSTS2MOD-GRAND_MAGE_TRIAL_EVENT.pages.INITIAL.options.CHALLENGE.description": "全队挑战*大法师老爹*。胜利后，每人获得精英战奖励及额外*100金币*，随后返回地图。",
+  "SHENGZHUSTS2MOD-GRAND_MAGE_TRIAL_EVENT.pages.INITIAL.options.LEAVE.title": "改日再请教",
+  "SHENGZHUSTS2MOD-GRAND_MAGE_TRIAL_EVENT.pages.INITIAL.options.LEAVE.description": "无代价离开。本局不再收到试炼邀请。",
+  "SHENGZHUSTS2MOD-GRAND_MAGE_TRIAL_EVENT.pages.LEFT.description": "老爹收起符纸，给你们让出一条路。\n\n“知道什么时候该停手，也算长进。还有一件事！别把黑气留在老爹的地板上！”",
   "SHENGZHUSTS2MOD-DAO_LONG_EVENT.title": "刀龙黑气",
   "SHENGZHUSTS2MOD-DAO_LONG_EVENT.pages.INITIAL.description": "你在黑暗的巷弄中遇到了一位身披黑袍、白发飘飘的巫师。他手中的杖尖环绕着令人不安的绿光，那是纯粹的 *黑暗能量*。\n\n刀龙冷笑着看向你的随从：“圣主，你的这些手下真是太软弱了。周、拉苏、阿奋……这些蠢货只会一再让你失望。而我，可以赐予他们真正的魔力。”\n\n他缓缓举起手杖。空气变得阴冷厚重，一股不可抗拒的意志锁定了你携带的仆役卡片。",
   "SHENGZHUSTS2MOD-DAO_LONG_EVENT.pages.INITIAL.options.ACCEPT.title": "接受黑气加持",

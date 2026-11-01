@@ -163,7 +163,7 @@ public class OxTalisman : ShengZhuSts2ModRelic, ITalismanRightClickable, ITalism
     /// </summary>
     public override Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature> participants)
     {
-        if (side == CombatSide.Player && _cooldownTurnsRemaining > 0)
+        if (side == CombatSide.Player && Owner != null && participants.Contains(Owner.Creature) && _cooldownTurnsRemaining > 0)
         {
             _cooldownTurnsRemaining--;
             UpdateTalismanVisualState(_activated, _cooldownTurnsRemaining);

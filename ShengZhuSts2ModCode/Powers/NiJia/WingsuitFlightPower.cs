@@ -104,7 +104,7 @@ public class WingsuitFlightPower : ShengZhuSts2ModPower
     /// <returns>异步任务。</returns>
     public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<Creature> participants)
     {
-        if (Owner == null || side != Owner.Side)
+        if (Owner == null || side != Owner.Side || !participants.Contains(Owner))
         {
             return;
         }

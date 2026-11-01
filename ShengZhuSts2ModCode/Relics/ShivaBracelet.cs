@@ -115,7 +115,7 @@ public class ShivaBracelet : ShengZhuSts2ModRelic
     /// <param name="side">结束回合的一方。</param>
     public override Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature> participants)
     {
-        if (side == CombatSide.Player && _remainingReplaysThisTurn != 0)
+        if (side == CombatSide.Player && Owner != null && participants.Contains(Owner.Creature) && _remainingReplaysThisTurn != 0)
         {
             _remainingReplaysThisTurn = 0;
             InvokeDisplayAmountChanged();

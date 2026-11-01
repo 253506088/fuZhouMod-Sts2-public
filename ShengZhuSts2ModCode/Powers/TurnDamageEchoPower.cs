@@ -129,7 +129,7 @@ public abstract class TurnDamageEchoPower : ShengZhuSts2ModPower, IHasSecondAmou
     /// <returns>异步任务。</returns>
     public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature> participants)
     {
-        if (side != CombatSide.Player || Owner?.CombatState == null)
+        if (side != CombatSide.Player || Owner?.CombatState == null || !participants.Contains(Owner))
         {
             return;
         }

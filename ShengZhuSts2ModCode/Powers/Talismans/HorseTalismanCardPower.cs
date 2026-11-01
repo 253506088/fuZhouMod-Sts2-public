@@ -103,7 +103,7 @@ public class HorseTalismanCardPower : ShengZhuSts2ModPower, IHasSecondAmount
     /// </summary>
     public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature> participants)
     {
-        if (side != CombatSide.Player || Owner == null)
+        if (side != CombatSide.Player || Owner == null || !participants.Contains(Owner))
         {
             return;
         }

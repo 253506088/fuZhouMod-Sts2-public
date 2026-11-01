@@ -46,7 +46,10 @@ public abstract class AhFuCard(int cost, CardType type, CardRarity rarity, Targe
     /// </summary>
     public override Task AfterPlayerTurnStart(PlayerChoiceContext choiceContext, Player player)
     {
-        _afuComboActive = false;
+        if (Owner == player)
+        {
+            _afuComboActive = false;
+        }
         return Task.CompletedTask;
     }
 

@@ -46,4 +46,23 @@ public static class GmUiManager
             ContentMarginBottom = 7
         };
     }
+
+    /// <summary>创建可用鼠标与手柄聚焦的说明按钮，使用统一的深色背景和高对比文字。</summary>
+    public static Button CreateTextButton(string text)
+    {
+        var button = new Button { Text = text, CustomMinimumSize = new Vector2(0, 30), FocusMode = Control.FocusModeEnum.All };
+        button.AddThemeFontSizeOverride("font_size", 16);
+        button.AddThemeColorOverride("font_color", new Color("F5E9C8"));
+        button.AddThemeColorOverride("font_hover_color", Colors.White);
+        button.AddThemeColorOverride("font_pressed_color", Colors.White);
+        foreach (string state in new[] { "normal", "hover", "pressed", "focus" })
+        {
+            var style = CreatePanelStyle();
+            style.BgColor = state == "normal" ? new Color("252724") : new Color("3B493C");
+            style.BorderColor = new Color(state == "normal" ? "89724B" : "E5CF83");
+            style.ContentMarginTop = style.ContentMarginBottom = 4;
+            button.AddThemeStyleboxOverride(state, style);
+        }
+        return button;
+    }
 }

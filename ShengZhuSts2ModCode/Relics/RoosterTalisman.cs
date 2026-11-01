@@ -143,7 +143,7 @@ public class RoosterTalisman : ShengZhuSts2ModRelic
     /// </summary>
     public override async Task BeforeSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature> participants)
     {
-        if (side != CombatSide.Player || !HasRatResonance() || Owner?.PlayerCombatState == null)
+        if (side != CombatSide.Player || !HasRatResonance() || Owner?.PlayerCombatState == null || !participants.Contains(Owner.Creature))
         {
             return;
         }

@@ -18,7 +18,7 @@ public static class AttackCardPlayHelper
     /// <summary>
     /// 当前统计所属回合号。
     /// </summary>
-    private static int _playedTurnNumber = -1;
+    private static readonly Dictionary<ulong, int> PlayedTurnNumbersByPlayer = [];
 
     /// <summary>
     /// 本回合每名玩家已经打出的攻击牌数量；夺舍只检查自己，不影响阿福团队共享统计。
@@ -90,8 +90,16 @@ public static class AttackCardPlayHelper
         {
             int count = CountAttackPlayedThisTurn(ownerId.Value) + 1;
             AttackPlayedThisTurnByPlayer[ownerId.Value] = count;
-            ShengZhuLogHelper.VerboseCombatInfo(() => $"【攻击牌统计】记录攻击牌：玩家={ownerId.Value}，卡牌={card.Id.Entry}，回合={_playedTurnNumber}，本玩家本回合攻击牌={count}。");
+            ShengZhuLogHelper.VerboseCombatInfo(() => $"【攻击牌统计】记录攻击牌：玩家={ownerId.Value}，卡牌={card.Id.Entry}，回合={GetCurrentTurnNumber(card)}，本玩家本回合攻击牌={count}。");
         }
+    }
+
+    /// <summary>
+    /// 记录出牌事件；本服务只判断是否打过攻击牌，同牌重复无需增加布尔意义上的记录。
+    /// </summary>
+    public static void RecordCardPlay(CardPlay cardPlay)
+    {
+        RecordPlayedCard(cardPlay.Card);
     }
 
     /// <summary>
@@ -116,7 +124,7 @@ public static class AttackCardPlayHelper
     /// </summary>
     private static void ResetTurnCounters()
     {
-        _playedTurnNumber = -1;
+        PlayedTurnNumbersByPlayer.Clear();
         AttackPlayedThisTurnByPlayer.Clear();
         RecordedCardsThisTurnByPlayer.Clear();
         ShengZhuLogHelper.VerboseCombatInfo(() => "【攻击牌统计】战斗统计已重置。");
@@ -145,14 +153,15 @@ public static class AttackCardPlayHelper
     private static void EnsureTurnState(CardModel card)
     {
         int currentTurnNumber = GetCurrentTurnNumber(card);
-        if (currentTurnNumber == _playedTurnNumber)
+        ulong? ownerId = GetOwnerId(card);
+        if (ownerId == null || (PlayedTurnNumbersByPlayer.TryGetValue(ownerId.Value, out int previousTurn) && currentTurnNumber == previousTurn))
         {
             return;
         }
 
-        _playedTurnNumber = currentTurnNumber;
-        AttackPlayedThisTurnByPlayer.Clear();
-        RecordedCardsThisTurnByPlayer.Clear();
+        PlayedTurnNumbersByPlayer[ownerId.Value] = currentTurnNumber;
+        AttackPlayedThisTurnByPlayer.Remove(ownerId.Value);
+        RecordedCardsThisTurnByPlayer.Remove(ownerId.Value);
         ShengZhuLogHelper.VerboseCombatInfo(() => $"【攻击牌统计】检测到新回合，重置本回合攻击牌统计：回合={currentTurnNumber}。");
     }
 
@@ -199,6 +208,12 @@ public static class AttackCardPlayHelper
     /// <returns>当前回合号。</returns>
     private static int GetCurrentTurnNumber(CardModel card)
     {
+        // 额外回合仅推进本人回合序号，不能沿用全场公共回合数。
+        if (card.Owner?.PlayerCombatState != null)
+        {
+            return card.Owner.PlayerCombatState.TurnNumber;
+        }
+
         ICombatState? combatState = card.Owner?.Creature?.CombatState;
         if (combatState == null)
         {

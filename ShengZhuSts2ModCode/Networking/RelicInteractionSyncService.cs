@@ -654,6 +654,7 @@ internal static class RelicInteractionSyncService
     /// <returns>异步任务。</returns>
     private static async Task BroadcastAndExecute(Player owner, RelicInteractionType interactionType, TalismanRelicType targetRelicType, bool boolValue, Func<Player, Task> execute, int intValue = 0, int secondIntValue = 0, bool secondBoolValue = false, string stringValue = "", string secondStringValue = "")
     {
+        if (Monsters.GrandMageDad.GrandMageDadSealService.BlocksInteraction(owner, interactionType, targetRelicType)) return;
         RunManager runManager = RunManager.Instance;
         bool canUseNetworkBuffer = EnsureRegisteredForRun(runManager);
         if (canUseNetworkBuffer && runManager.NetService.Type != NetGameType.Singleplayer)
@@ -768,6 +769,7 @@ internal static class RelicInteractionSyncService
     /// <returns>本次请求已由动作队列路径处理时返回 true。</returns>
     private static bool TrySubmitQueuedInteraction(Player owner, RelicInteractionType interactionType, TalismanRelicType targetRelicType, bool boolValue, int intValue)
     {
+        if (Monsters.GrandMageDad.GrandMageDadSealService.BlocksInteraction(owner, interactionType, targetRelicType)) return true;
         if (!ShouldUseQueuedInteraction(owner, interactionType))
         {
             return false;
@@ -862,6 +864,7 @@ internal static class RelicInteractionSyncService
     /// <returns>异步任务。</returns>
     internal static async Task ExecuteQueuedInteraction(Player player, RelicInteractionType interactionType, TalismanRelicType targetRelicType, bool boolValue, int intValue, PlayerChoiceContext choiceContext)
     {
+        if (Monsters.GrandMageDad.GrandMageDadSealService.BlocksInteraction(player, interactionType, targetRelicType)) return;
         try
         {
             switch (interactionType)
@@ -1015,6 +1018,7 @@ internal static class RelicInteractionSyncService
     /// <returns>异步任务。</returns>
     private static async Task ExecuteRemoteInteraction(Player player, RelicInteractionUseMessage message)
     {
+        if (Monsters.GrandMageDad.GrandMageDadSealService.BlocksInteraction(player, message.InteractionType, message.TargetRelicType)) return;
         if (IsRestSiteInteractionCanceledMessage(message))
         {
             CompletePendingRestSiteInteraction(player.NetId, message.InteractionType, false);

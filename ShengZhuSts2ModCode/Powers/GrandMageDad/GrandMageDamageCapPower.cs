@@ -13,7 +13,7 @@ using ShengZhuSts2Mod.ShengZhuSts2ModCode.Powers;
 namespace ShengZhuSts2Mod.ShengZhuSts2ModCode.Powers.GrandMageDad;
 
 /// <summary>
-/// 大法师老爹的正气不灭：限制每回合实际生命承伤，后续符咒封存阶段会在打满上限时返还符咒。
+/// 大法师老爹的正气不灭：所有来源的生命伤害共享每轮硬上限，符咒按两回合归还。
 /// </summary>
 public class GrandMageDamageCapPower : ShengZhuSts2ModPower
 {
@@ -36,8 +36,8 @@ public class GrandMageDamageCapPower : ShengZhuSts2ModPower
     /// </summary>
     protected override IEnumerable<DynamicVar> CanonicalVars =>
     [
-        new DynamicVar("Cap", 250),
-        new DynamicVar("Remaining", 250),
+        new DynamicVar("Cap", 256),
+        new DynamicVar("Remaining", 256),
         new DynamicVar("PerHitCap", 0)
     ];
 
@@ -89,7 +89,7 @@ public class GrandMageDamageCapPower : ShengZhuSts2ModPower
     }
 
     /// <summary>
-    /// 在生命损失前收窄数值，避免老爹一回合内实际生命伤害超过上限。
+    /// 只预览本轮剩余伤害额度，最终扣血入口还会校验，避免异常绕过或多目标重入超额。
     /// </summary>
     /// <param name="target">受击者。</param>
     /// <param name="amount">本次即将损失的生命值。</param>
@@ -104,25 +104,36 @@ public class GrandMageDamageCapPower : ShengZhuSts2ModPower
             return amount;
         }
 
-        int remainBefore = Math.Max(0, _capPerTurn - _takenThisTurn);
         decimal adjusted = amount;
         if (_perHitCap > 0)
         {
             adjusted = Math.Min(adjusted, _perHitCap);
         }
 
-        adjusted = Math.Min(adjusted, remainBefore);
-        _takenThisTurn += Math.Max(0, (int)Math.Ceiling(adjusted));
+        // 伤害预览也可能调用修正入口，这里只计算；实际生命变化后才累计。
+        return GrandMageDadBalance.ReduceBurstDamage(adjusted, _takenThisTurn, _capPerTurn);
+    }
+
+    /// <summary>实际额度由最终扣血补丁即时累计，此钩子只刷新显示，避免重复计数。</summary>
+    public override Task AfterCurrentHpChanged(Creature creature, decimal delta)
+    {
+        if (creature != Owner || delta >= 0) return Task.CompletedTask;
+        RefreshDisplay();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>最终扣血时按剩余额度和狗符咒单次45上限截断，不修改计数。</summary>
+    internal decimal LimitLoss(decimal amount)
+        => Math.Min(_perHitCap > 0 ? Math.Min(amount, _perHitCap) : amount, Math.Max(0, _capPerTurn - _takenThisTurn));
+
+    /// <summary>在最终扣血返回时立即记账，防止多个目标或反伤等后续扣血使用旧额度。</summary>
+    internal void RecordLoss(int loss)
+    {
+        if (Owner == null || loss <= 0) return;
+        _takenThisTurn += loss;
         RefreshEncounterState();
         RefreshDisplay();
-
-        if (remainBefore > 0 && adjusted >= remainBefore)
-        {
-            ShengZhuLogHelper.VerboseCombatInfo(() => "【大法师老爹】【正气不灭】本回合生命承伤上限已打满，符咒返还将在封存阶段接入。");
-        }
-
-        ShengZhuLogHelper.VerboseCombatInfo(() => $"【大法师老爹】【正气不灭】拦截生命伤害：原始={amount}，调整后={adjusted}，累计={_takenThisTurn}/{_capPerTurn}，来源={GetCreatureLogName(dealer)}。");
-        return adjusted;
+        ShengZhuLogHelper.VerboseCombatInfo(() => $"【老爹承伤】实际失血={loss}，本轮累计={_takenThisTurn}，剩余额度={Math.Max(0, _capPerTurn - _takenThisTurn)}。");
     }
 
     /// <summary>

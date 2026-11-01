@@ -9,12 +9,13 @@ using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Powers;
 using MegaCrit.Sts2.Core.ValueProps;
 using ShengZhuSts2Mod.ShengZhuSts2ModCode.Helpers;
+using ShengZhuSts2Mod.ShengZhuSts2ModCode.Monsters.GrandMageDad;
 using ShengZhuSts2Mod.ShengZhuSts2ModCode.Powers;
 
 namespace ShengZhuSts2Mod.ShengZhuSts2ModCode.Powers.GrandMageDad;
 
 /// <summary>
-/// 大法师老爹的大法师的庇佑：本阶段先做最小保护标记和异常免疫展示。
+/// 大法师的庇佑：按进阶和开局参战人数补充全队共享的减益抵消，并限制魔气单次伤害。
 /// </summary>
 public class GrandMageBlessingPower : ShengZhuSts2ModPower
 {
@@ -23,7 +24,7 @@ public class GrandMageBlessingPower : ShengZhuSts2ModPower
     /// </summary>
     public const int DemonQiSingleDamageCap = 30;
 
-    private int _negateCount = 2;
+    private int _negateCount;
     private bool _isNegating;
 
     /// <summary>
@@ -41,9 +42,25 @@ public class GrandMageBlessingPower : ShengZhuSts2ModPower
     /// </summary>
     protected override IEnumerable<DynamicVar> CanonicalVars =>
     [
-        new DynamicVar("Negate", 2),
+        new DynamicVar("Negate", 3),
         new DynamicVar("Cap", DemonQiSingleDamageCap)
     ];
+
+    /// <summary>开局立即补足抵消次数，和后续回合使用相同的计算入口。</summary>
+    public override Task AfterApplied(Creature? applier, CardModel? cardSource)
+    {
+        ResetNegates();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>使用开局快照计算次数，队友死亡不会让本场上限变化。</summary>
+    private void ResetNegates()
+    {
+        if (Owner?.IsAlive != true || Owner.CombatState?.Encounter is not GrandMageDadEncounter encounter) return;
+        _negateCount = GrandMageDadBalance.BlessingNegates(encounter.State.PlayerCount, encounter.State.Ascension);
+        RefreshDisplay();
+        ShengZhuLogHelper.VerboseCombatInfo(() => $"【大法师老爹】【大法师的庇佑】重置减益抵消：A{encounter.State.Ascension}，开局人数={encounter.State.PlayerCount}，次数={_negateCount}。");
+    }
 
     /// <summary>
     /// 回合开始时重置抵消次数。
@@ -58,9 +75,7 @@ public class GrandMageBlessingPower : ShengZhuSts2ModPower
             return Task.CompletedTask;
         }
 
-        _negateCount = 2;
-        RefreshDisplay();
-        ShengZhuLogHelper.VerboseCombatInfo(() => "【大法师老爹】【大法师的庇佑】回合开始，重置减益抵消次数为2。");
+        ResetNegates();
         return Task.CompletedTask;
     }
 
@@ -94,7 +109,7 @@ public class GrandMageBlessingPower : ShengZhuSts2ModPower
         _isNegating = true;
         try
         {
-            await PowerCmd.ModifyAmount(power, -negateAmount, Owner, cardSource, false);
+            await PowerCmd.ModifyAmount(choiceContext, power, -negateAmount, Owner, cardSource, false);
             ShengZhuLogHelper.VerboseCombatInfo(() => $"【大法师老爹】【大法师的庇佑】抵消减益：能力={power.Id.Entry}，层数={negateAmount}，来源={GetCreatureLogName(applier)}。");
         }
         finally

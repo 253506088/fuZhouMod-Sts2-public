@@ -2,8 +2,10 @@
   "SHENGZHUSTS2MOD-GRAND_MAGE_DAD.name": "Grand Mage Dad",
   "SHENGZHUSTS2MOD-GRAND_MAGE_DAD.moves.THUNDER_COMBO.title": "Thunder Talisman Combo",
   "SHENGZHUSTS2MOD-GRAND_MAGE_DAD.moves.SUPPRESSION_SEAL.title": "Evil-Suppressing Seal",
-  "SHENGZHUSTS2MOD-GRAND_MAGE_DAD.moves.TALISMAN_PURSUIT.title": "Talisman Seizure Pursuit",
+  "SHENGZHUSTS2MOD-GRAND_MAGE_DAD.moves.TALISMAN_PURSUIT.title": "Talisman Seizure",
   "SHENGZHUSTS2MOD-GRAND_MAGE_DAD.moves.BAGUA_BARRAGE.title": "Bagua Barrage",
   "SHENGZHUSTS2MOD-GRAND_MAGE_DAD.moves.ULTIMATE_SEAL_CHANT.title": "Ultimate Seal: Chant",
-  "SHENGZHUSTS2MOD-GRAND_MAGE_DAD.moves.ULTIMATE_SEAL_EXECUTE.title": "Ultimate Seal: Execute"
+  "SHENGZHUSTS2MOD-GRAND_MAGE_DAD.moves.ULTIMATE_SEAL_EXECUTE.title": "Ultimate Seal: Execution",
+  "SHENGZHUSTS2MOD-GRAND_MAGE_DAD.moves.SEAL_BROKEN_STAGGER.title": "Seal Broken: Stagger",
+  "SHENGZHUSTS2MOD-GRAND_MAGE_DAD.executionLabel": "Execute"
 }

@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://ShengZhuSts2Mod/images/charui/shengzhu_statue.png" id="1"]
+[ext_resource type="PackedScene" path="res://ShengZhuSts2Mod/scenes/portraits/shendu_rig.tscn" id="2"]
+
+[node name="Visuals" type="Node2D"]
+
+[node name="ShengZhuStatueVisual" type="Sprite2D" parent="."]
+texture = ExtResource("1")
+position = Vector2(0, -155.125)
+scale = Vector2(0.85, 0.85)
+
+[node name="ShengZhuTrueFormVisual" parent="." instance=ExtResource("2")]
+visible = false

@@ -122,7 +122,7 @@ public class TigerTalisman : ShengZhuSts2ModRelic
     /// </summary>
     public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature> participants)
     {
-        if (side == CombatSide.Player)
+        if (side == CombatSide.Player && Owner != null && participants.Contains(Owner.Creature))
         {
             // 鼠符咒共鸣：攻击数=技能数时下回合多抽2张（通过EnergyNextTurnPower的同类机制）
             if (HasRatResonance() && _attackCountThisTurn > 0 && _attackCountThisTurn == _skillCountThisTurn)

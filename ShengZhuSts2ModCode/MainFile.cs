@@ -25,7 +25,7 @@ public partial class MainFile : Node
         // 初始化自定义关键字注册表，加载 card_keywords.json 中的关键字数据。
         KeywordRegistry.Initialize();
 
-        // 注册大法师老爹 Boss 本体和独立遭遇；本阶段不挂载到任何正式楼层。
+        // 注册大法师老爹调试遭遇和第三章事件试炼；不加入原版关底池。
         GrandMageDadRegistry.Initialize();
 
         // 初始化十二符咒觉醒的玩家级存档字段，保证 SL 和联机存档能记住奖励是否已经发放。

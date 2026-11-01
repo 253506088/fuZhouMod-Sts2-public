@@ -1,5 +1,6 @@
 .godot/
 bin/
+obj/
 /android/
 .git/
 .idea/
@@ -10,3 +11,9 @@ packages/
 .editorconfig
 *.user
 Directory.Build.props
+local.props
+/.compat-work/
+/artifacts/
+*.log
+*.import
+*.uid

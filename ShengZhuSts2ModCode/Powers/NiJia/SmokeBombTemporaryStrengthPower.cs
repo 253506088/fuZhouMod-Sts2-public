@@ -29,32 +29,7 @@ public class SmokeBombTemporaryStrengthPower : ShengZhuSts2ModPower
     public override PowerStackType StackType => PowerStackType.Counter;
 
     /// <summary>
-    /// 首次施加临时降力时，先让目标失去同等力量。
-    /// </summary>
-    /// <param name="target">被降低力量的目标。</param>
-    /// <param name="amount">本次临时降力层数。</param>
-    /// <param name="applier">施加来源。</param>
-    /// <param name="cardSource">来源卡牌。</param>
-    /// <returns>异步任务。</returns>
-    public override async Task BeforeApplied(Creature target, decimal amount, Creature? applier, CardModel? cardSource)
-    {
-        if (amount <= 0)
-        {
-            return;
-        }
-
-        if (ConsumeStrengthLossHandledByBatch(target, amount))
-        {
-            MainFile.Logger.Info($"【烟雾弹】批量路径接管临时降力返还：目标={target.Name}，返还={amount}。");
-            return;
-        }
-
-        await PowerCmd.Apply<StrengthPower>(target, -amount, applier, cardSource, true);
-        MainFile.Logger.Info($"【烟雾弹】施加临时降力：目标={target.Name}，力量-{amount}。");
-    }
-
-    /// <summary>
-    /// 临时降力叠层时，只补扣新增层数对应的力量。
+    /// 初次施加和叠层统一按本次变化量扣力量，避免羊符咒嵌套翻倍导致首次效果重复。
     /// </summary>
     /// <param name="choiceContext">当前选择上下文。</param>
     /// <param name="power">发生变化的能力。</param>
@@ -64,7 +39,7 @@ public class SmokeBombTemporaryStrengthPower : ShengZhuSts2ModPower
     /// <returns>异步任务。</returns>
     public override async Task AfterPowerAmountChanged(PlayerChoiceContext choiceContext, PowerModel power, decimal amount, Creature? applier, CardModel? cardSource)
     {
-        if (power != this || amount <= 0 || amount == Amount || Owner == null)
+        if (power != this || amount <= 0 || Owner == null)
         {
             return;
         }
@@ -88,7 +63,7 @@ public class SmokeBombTemporaryStrengthPower : ShengZhuSts2ModPower
     /// <returns>异步任务。</returns>
     public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<Creature> participants)
     {
-        if (Owner == null || side != Owner.Side)
+        if (Owner == null || side != Owner.Side || !participants.Contains(Owner))
         {
             return;
         }

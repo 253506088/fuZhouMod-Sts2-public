@@ -1,4 +1,5 @@
 using MegaCrit.Sts2.Core.Commands;
+using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -71,7 +72,11 @@ public class TwoDragonsPower : ShengZhuSts2ModPower
         if (_pendingRemoval && IsOwnerCard(cardPlay.Card))
         {
             _pendingRemoval = false;
-            await PowerCmd.Remove(this);
+            // 重放二龙戏珠本身时可能已补充新层数，只清理仍为零的旧效果。
+            if (Amount <= 0)
+            {
+                await PowerCmd.Remove(this);
+            }
         }
     }
 
@@ -83,5 +88,16 @@ public class TwoDragonsPower : ShengZhuSts2ModPower
     private bool IsOwnerCard(CardModel? card)
     {
         return Owner != null && card?.Owner?.Creature == Owner;
+    }
+
+    /// <summary>
+    /// 二龙戏珠只在本回合有效；队友的额外回合不会清除本人的剩余层数。
+    /// </summary>
+    public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<Creature> participants)
+    {
+        if (Owner != null && side == Owner.Side && participants.Contains(Owner))
+        {
+            await PowerCmd.Remove(this);
+        }
     }
 }

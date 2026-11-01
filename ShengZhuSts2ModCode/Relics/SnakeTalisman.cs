@@ -103,7 +103,7 @@ public class SnakeTalisman : ShengZhuSts2ModRelic, ITalismanRightClickable, ITal
     /// </summary>
     public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature> participants)
     {
-        if (side != CombatSide.Player)
+        if (side != CombatSide.Player || Owner == null || !participants.Contains(Owner.Creature))
         {
             return;
         }

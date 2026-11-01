@@ -77,7 +77,7 @@ public class GoatClimbsMountainPower : ShengZhuSts2ModPower
     /// <returns>异步任务。</returns>
     public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, MegaCrit.Sts2.Core.Combat.CombatSide side, IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature> participants)
     {
-        if (side != MegaCrit.Sts2.Core.Combat.CombatSide.Player || Owner == null)
+        if (side != MegaCrit.Sts2.Core.Combat.CombatSide.Player || Owner == null || !participants.Contains(Owner))
         {
             return;
         }

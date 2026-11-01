@@ -335,9 +335,16 @@ public class TalismanLocator : ShengZhuSts2ModRelic, ITalismanRightClickable
         // }
 
         EventModel storyEvent = TryForceConfiguredActFirstUnknownEvent(currentEvent, out bool hasHandledStoryEvent);
-        if (hasHandledStoryEvent)
+        // 配置剧情优先于自然抽到的试炼；后续探测仪保留已经确定的剧情或试炼。
+        if (hasHandledStoryEvent || currentEvent is GrandMageTrialEvent || IsConfiguredStoryEvent(currentEvent))
         {
             return storyEvent;
+        }
+
+        EventModel trialEvent = GrandMageTrialService.ReplaceNextEvent(Owner.RunState, currentEvent);
+        if (trialEvent is GrandMageTrialEvent)
+        {
+            return trialEvent;
         }
 
         if (currentEvent is RobTalismanEvent)
