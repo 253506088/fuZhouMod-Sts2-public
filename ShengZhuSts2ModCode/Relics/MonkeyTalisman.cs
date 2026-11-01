@@ -220,7 +220,7 @@ public class MonkeyTalisman : ShengZhuSts2ModRelic, ITalismanRightClickable, ITa
                 CardCmd.Upgrade(newCard);
             }
 
-            await CardCmd.Exhaust(context, targetCard);
+            _ = await CardCmd.Exhaust(context, targetCard);
             await CardPileCmdHelper.AddGeneratedCardToCombat(newCard, PileType.Hand, true);
 
             MainFile.Logger.Info($"【猴符咒】战斗内七十二变完成：{targetCard.Title} → {newCard.Title}");

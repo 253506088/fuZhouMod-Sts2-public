@@ -1,0 +1,37 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://ShengZhuSts2Mod/images/monsters/grand_mage_dad/rig/body.svg" id="1_body"]
+[ext_resource type="Texture2D" path="res://ShengZhuSts2Mod/images/monsters/grand_mage_dad/rig/head.svg" id="2_head"]
+
+[node name="GrandMageDad" type="Node2D"]
+
+[node name="Body" type="Sprite2D" parent="."]
+position = Vector2(0, -140)
+texture = ExtResource("1_body")
+
+[node name="Head" type="Sprite2D" parent="."]
+position = Vector2(0, -313)
+texture = ExtResource("2_head")
+
+[node name="Bounds" type="Control" parent="."]
+unique_name_in_owner = true
+offset_left = -210.0
+offset_top = -400.0
+offset_right = 210.0
+mouse_filter = 2
+
+[node name="CenterPos" type="Marker2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(0, -190)
+
+[node name="IntentPos" type="Marker2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(0, -460)
+
+[node name="OrbPos" type="Marker2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(0, -200)
+
+[node name="TalkPos" type="Marker2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(0, -410)

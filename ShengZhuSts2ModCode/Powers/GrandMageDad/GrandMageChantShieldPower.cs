@@ -5,6 +5,7 @@ using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.ValueProps;
 using ShengZhuSts2Mod.ShengZhuSts2ModCode.Monsters.GrandMageDad;
+using DadMonster = ShengZhuSts2Mod.ShengZhuSts2ModCode.Monsters.GrandMageDad.GrandMageDad;
 using ShengZhuSts2Mod.ShengZhuSts2ModCode.Helpers;
 using ShengZhuSts2Mod.ShengZhuSts2ModCode.Powers;
 
@@ -60,6 +61,7 @@ public class GrandMageChantShieldPower : ShengZhuSts2ModPower
         _isRemoving = true;
         try
         {
+            if (Owner.Monster is DadMonster dad) await GrandMageDadMoveService.InterruptChant(dad);
             RefreshEncounterState(false);
             ShengZhuLogHelper.VerboseCombatInfo(() => "【大法师老爹】【吟唱护盾】护盾已被打破，终极封印处决将失效。");
             await PowerCmd.Remove(this);
@@ -75,10 +77,25 @@ public class GrandMageChantShieldPower : ShengZhuSts2ModPower
     /// </summary>
     /// <param name="oldOwner">移除前的持有者。</param>
     /// <returns>异步任务。</returns>
-    public override Task AfterRemoved(Creature oldOwner)
+    public override async Task AfterRemoved(Creature oldOwner)
     {
+        if (oldOwner.Monster is DadMonster dad) await GrandMageDadMoveService.InterruptChant(dad);
         RefreshEncounterState(false);
-        return Task.CompletedTask;
+    }
+
+    /// <summary>吟唱期间保留格挡到下一次老爹行动，避免回合开始自动清盾导致判定失效。</summary>
+    public override bool ShouldClearBlock(Creature creature)
+    {
+        return creature != Owner || Owner?.CombatState?.Encounter is not GrandMageDadEncounter encounter || !encounter.State.IsChanting;
+    }
+
+    /// <summary>护盾被非伤害命令打破时也能打断吟唱。</summary>
+    public override async Task AfterBlockBroken(PlayerChoiceContext choiceContext, Creature target, Creature? breaker)
+    {
+        if (_isRemoving || target != Owner || Owner?.Monster is not DadMonster dad) return;
+        _isRemoving = true;
+        try { await GrandMageDadMoveService.InterruptChant(dad); await PowerCmd.Remove(this); }
+        finally { _isRemoving = false; }
     }
 
     /// <summary>

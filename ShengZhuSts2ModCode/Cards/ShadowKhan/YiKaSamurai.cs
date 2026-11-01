@@ -80,7 +80,7 @@ public class YiKaSamurai : BaseShadowKhanCard
                 return;
             }
 
-            await CardCmd.Exhaust(choiceContext, selected);
+            _ = await CardCmd.Exhaust(choiceContext, selected);
             await ResolveExhaustedCardEffect(choiceContext, cardPlay.Target, selected, cardPlay);
         }
         finally

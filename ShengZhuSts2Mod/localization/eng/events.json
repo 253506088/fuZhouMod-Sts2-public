@@ -1,4 +1,11 @@
 {
+  "SHENGZHUSTS2MOD-GRAND_MAGE_TRIAL_EVENT.title": "Trial of Righteous Chi",
+  "SHENGZHUSTS2MOD-GRAND_MAGE_TRIAL_EVENT.pages.INITIAL.description": "Deep in the Spire, floating talismans surround a glowing Bagua circle. Uncle adjusts his glasses and stands before Shendu.\n\n“One more thing! With all that dark chi, brute force will not be enough. Show Uncle that you can break the Five Elements!”\n\nThis is an optional, difficult battle. Uncle uses formations and temporarily seals Talismans. Break his chanting shield to release everyone's seals and stagger him. Defeat still ends the run. You may leave now instead.",
+  "SHENGZHUSTS2MOD-GRAND_MAGE_TRIAL_EVENT.pages.INITIAL.options.CHALLENGE.title": "Accept the Trial",
+  "SHENGZHUSTS2MOD-GRAND_MAGE_TRIAL_EVENT.pages.INITIAL.options.CHALLENGE.description": "Your party challenges *Grand Mage Uncle*. On victory, each player receives Elite combat rewards and an extra *100 Gold*, then returns to the map.",
+  "SHENGZHUSTS2MOD-GRAND_MAGE_TRIAL_EVENT.pages.INITIAL.options.LEAVE.title": "Another Time, Uncle",
+  "SHENGZHUSTS2MOD-GRAND_MAGE_TRIAL_EVENT.pages.INITIAL.options.LEAVE.description": "Leave at no cost. This invitation will not appear again this run.",
+  "SHENGZHUSTS2MOD-GRAND_MAGE_TRIAL_EVENT.pages.LEFT.description": "Uncle lowers his talismans and steps aside.\n\n“Knowing when to stop is progress. One more thing! Keep that dark chi off Uncle's floor!”",
   "SHENGZHUSTS2MOD-DAO_LONG_EVENT.title": "Daolon Wong's Dark Chi",
   "SHENGZHUSTS2MOD-DAO_LONG_EVENT.pages.INITIAL.description": "In a dark alley, you meet a white-haired sorcerer wrapped in black robes. Sickly green light coils around the tip of his staff: pure *dark chi*.\n\nDaolon Wong sneers at your followers. \"Shendu, your servants are pathetic. Chow, Ratso, Finn... they fail you again and again. I can grant them true power.\"\n\nHe raises his staff. The air turns cold and heavy, and an irresistible will locks onto the servant cards in your deck.",
   "SHENGZHUSTS2MOD-DAO_LONG_EVENT.pages.INITIAL.options.ACCEPT.title": "Accept dark chi",

@@ -169,20 +169,20 @@ public class PigTalisman : ShengZhuSts2ModRelic, ITalismanRightClickable, ITalis
     /// <returns>是否至少成功移除了护甲或人造制品其一。</returns>
     private async Task<bool> RemoveBlockAndArtifact(Creature target)
     {
+        if (Owner?.Creature?.CombatState == null || target.CombatState != Owner.Creature.CombatState || !target.IsAlive)
+        {
+            return false;
+        }
+
         bool removed = false;
 
-        // 移除格挡：对目标造成等于其Block值的无属性伤害来清除
+        // 使用失去格挡命令清盾，保留目标生命值。
         if (target.Block > 0)
         {
             decimal blockAmount = target.Block;
-            await CreatureCmd.Damage(
-                new ThrowingPlayerChoiceContext(),
-                target,
-                blockAmount,
-                ValueProp.Unpowered,
-                Owner!.Creature,
-                null,
-                null);
+            // 清盾不属于伤害，不能经过无实体、反伤或伤害统计钩子。
+            await CreatureCmd.LoseBlock(new ThrowingPlayerChoiceContext(), target, blockAmount, Owner.Creature);
+            MainFile.Logger.Info($"【猪符咒】移除目标格挡：玩家={Owner.NetId}，目标={target.Name}，格挡={blockAmount}。");
             removed = true;
         }
 
@@ -267,7 +267,7 @@ public class PigTalisman : ShengZhuSts2ModRelic, ITalismanRightClickable, ITalis
     /// </summary>
     public override Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature> participants)
     {
-        if (side == CombatSide.Player && _cooldownTurnsRemaining > 0)
+        if (side == CombatSide.Player && Owner != null && participants.Contains(Owner.Creature) && _cooldownTurnsRemaining > 0)
         {
             _cooldownTurnsRemaining--;
             UpdateTalismanVisualState(_activated, _cooldownTurnsRemaining);

@@ -70,7 +70,7 @@ public class LameGooseTemporaryStrengthPower : ShengZhuSts2ModPower
     /// <returns>异步任务。</returns>
     public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature> participants)
     {
-        if (Owner == null || side != Owner.Side)
+        if (Owner == null || side != Owner.Side || !participants.Contains(Owner))
         {
             return;
         }

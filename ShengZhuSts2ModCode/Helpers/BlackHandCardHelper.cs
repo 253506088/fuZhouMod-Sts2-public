@@ -21,9 +21,9 @@ public static class BlackHandCardHelper
     private static ICombatState? _currentCombatState;
 
     /// <summary>
-    /// 当前统计所属回合号，切换回合时会重置本回合记录。
+    /// 各玩家统计所属回合号，只在该玩家换回合时清理对应记录。
     /// </summary>
-    private static int _playedTurnNumber = -1;
+    private static readonly Dictionary<ulong, int> PlayedTurnNumbersByPlayer = [];
 
     /// <summary>
     /// 本回合每名玩家已经打出的黑手帮牌数量。
@@ -36,9 +36,9 @@ public static class BlackHandCardHelper
     private static readonly Dictionary<ulong, int> AfuPlayedThisTurnByPlayer = [];
 
     /// <summary>
-    /// 本回合已经记录过的卡牌实例，用于避免重复记录同一张牌。
+    /// 本回合已经记录过的出牌事件，允许同一卡牌的不同次打出分别计数。
     /// </summary>
-    private static readonly HashSet<CardModel> RecordedCardsThisTurn = [];
+    private static readonly HashSet<CardPlay> RecordedPlaysThisTurn = [];
 
     /// <summary>
     /// 本场战斗每名玩家已经打出过的不同阿福牌ID。
@@ -178,11 +178,6 @@ public static class BlackHandCardHelper
             return;
         }
 
-        if (!RecordedCardsThisTurn.Add(card))
-        {
-            return;
-        }
-
         if (IsBlackHandCard(card))
         {
             BlackHandPlayedThisTurnByPlayer[ownerId.Value] = CountBlackHandPlayedThisTurn(ownerId.Value) + 1;
@@ -194,13 +189,26 @@ public static class BlackHandCardHelper
             GetUniqueAfuCardIds(ownerId.Value).Add(card.Id.Entry);
         }
 
-        ShengZhuLogHelper.VerboseCombatInfo(() => $"【黑手帮/阿福计数】记录打出：卡牌={card.Id.Entry}，玩家={ownerId.Value}，回合={_playedTurnNumber}，黑手帮本回合={CountBlackHandPlayedThisTurn(ownerId.Value)}，阿福本回合={CountAfuPlayedThisTurn(ownerId.Value)}，阿福本战斗不同={CountUniqueAfuPlayedThisCombat(ownerId.Value)}");
+        ShengZhuLogHelper.VerboseCombatInfo(() => $"【黑手帮/阿福计数】记录打出：卡牌={card.Id.Entry}，玩家={ownerId.Value}，回合={GetCurrentTurnNumber(card)}，黑手帮本回合={CountBlackHandPlayedThisTurn(ownerId.Value)}，阿福本回合={CountAfuPlayedThisTurn(ownerId.Value)}，阿福本战斗不同={CountUniqueAfuPlayedThisCombat(ownerId.Value)}");
     }
 
     /// <summary>
-    /// 统计本回合已打出的黑手帮卡数量，可排除当前正在结算的牌。
+    /// 按出牌事件去重；同一张牌的重放是新的事件，必须分别计数。
     /// </summary>
-    /// <param name="currentCard">当前牌；若已在出牌堆里，则会从统计中排除。</param>
+    public static void RecordCardPlay(CardPlay cardPlay)
+    {
+        EnsureCombatState(cardPlay.Card);
+        EnsureTurnState(cardPlay.Card);
+        if (RecordedPlaysThisTurn.Add(cardPlay))
+        {
+            RecordPlayedCard(cardPlay.Card);
+        }
+    }
+
+    /// <summary>
+    /// 统计本人本回合已完成的黑手帮出牌，当前正在结算的打出尚未记录。
+    /// </summary>
+    /// <param name="currentCard">用于确定玩家和回合的当前牌。</param>
     /// <returns>已打出的黑手帮卡数量。</returns>
     public static int CountBlackHandPlayedThisTurn(CardModel? currentCard = null)
     {
@@ -217,18 +225,13 @@ public static class BlackHandCardHelper
         }
 
         int count = CountBlackHandPlayedThisTurn(ownerId.Value);
-        if (currentCard != null && RecordedCardsThisTurn.Contains(currentCard) && IsBlackHandCard(currentCard))
-        {
-            count--;
-        }
-
         return Math.Max(0, count);
     }
 
     /// <summary>
-    /// 统计本回合已打出的阿福牌数量，可排除当前正在结算的牌。
+    /// 统计本人本回合已完成的阿福出牌，同一张牌的历史重放也计数。
     /// </summary>
-    /// <param name="currentCard">当前牌；若已经记录，则会从统计中排除。</param>
+    /// <param name="currentCard">用于确定玩家和回合的当前牌。</param>
     /// <returns>本回合已打出的阿福牌数量。</returns>
     public static int CountAfuPlayedThisTurn(CardModel? currentCard = null)
     {
@@ -245,18 +248,13 @@ public static class BlackHandCardHelper
         }
 
         int count = CountAfuPlayedThisTurn(ownerId.Value);
-        if (currentCard != null && RecordedCardsThisTurn.Contains(currentCard) && IsAhFuCard(currentCard))
-        {
-            count--;
-        }
-
         return Math.Max(0, count);
     }
 
     /// <summary>
-    /// 统计本场战斗已打出过的不同阿福牌数量，可排除当前正在结算的牌。
+    /// 统计本人本场战斗已打出过的不同阿福牌种类，不扣除同牌之前的打出。
     /// </summary>
-    /// <param name="currentCard">当前牌；若已经记录，则会从统计中排除。</param>
+    /// <param name="currentCard">用于确定玩家和战斗的当前牌。</param>
     /// <returns>不同阿福牌数量。</returns>
     public static int CountUniqueAfuPlayedThisCombat(CardModel? currentCard = null)
     {
@@ -274,11 +272,6 @@ public static class BlackHandCardHelper
 
         HashSet<string> uniqueAfuCardIds = GetUniqueAfuCardIds(ownerId.Value);
         int count = uniqueAfuCardIds.Count;
-        if (currentCard != null && RecordedCardsThisTurn.Contains(currentCard) && IsAhFuCard(currentCard) && uniqueAfuCardIds.Contains(currentCard.Id.Entry))
-        {
-            count--;
-        }
-
         return Math.Max(0, count);
     }
 
@@ -427,10 +420,10 @@ public static class BlackHandCardHelper
     /// </summary>
     private static void ResetCombatCounters()
     {
-        _playedTurnNumber = -1;
+        PlayedTurnNumbersByPlayer.Clear();
         BlackHandPlayedThisTurnByPlayer.Clear();
         AfuPlayedThisTurnByPlayer.Clear();
-        RecordedCardsThisTurn.Clear();
+        RecordedPlaysThisTurn.Clear();
         UniqueAfuCardIdsThisCombatByPlayer.Clear();
         PullStringsBlackHandCardsThisCombat.Clear();
         ShengZhuLogHelper.VerboseCombatInfo(() => "【黑手帮/阿福计数】战斗统计已重置。");
@@ -457,15 +450,16 @@ public static class BlackHandCardHelper
     private static void EnsureTurnState(CardModel card)
     {
         int currentTurnNumber = GetCurrentTurnNumber(card);
-        if (currentTurnNumber == _playedTurnNumber)
+        ulong? ownerId = GetOwnerNetId(card);
+        if (ownerId == null || (PlayedTurnNumbersByPlayer.TryGetValue(ownerId.Value, out int previousTurn) && currentTurnNumber == previousTurn))
         {
             return;
         }
 
-        _playedTurnNumber = currentTurnNumber;
-        BlackHandPlayedThisTurnByPlayer.Clear();
-        AfuPlayedThisTurnByPlayer.Clear();
-        RecordedCardsThisTurn.Clear();
+        PlayedTurnNumbersByPlayer[ownerId.Value] = currentTurnNumber;
+        BlackHandPlayedThisTurnByPlayer.Remove(ownerId.Value);
+        AfuPlayedThisTurnByPlayer.Remove(ownerId.Value);
+        RecordedPlaysThisTurn.RemoveWhere(play => play.Player.NetId == ownerId.Value);
         ShengZhuLogHelper.VerboseCombatInfo(() => $"【黑手帮/阿福计数】检测到新回合，重置本回合统计：回合={currentTurnNumber}");
     }
 
@@ -530,6 +524,12 @@ public static class BlackHandCardHelper
     /// </summary>
     private static int GetCurrentTurnNumber(CardModel card)
     {
+        // 额外回合不会推进公共 RoundNumber，必须使用各玩家自己的回合序号。
+        if (card.Owner?.PlayerCombatState != null)
+        {
+            return card.Owner.PlayerCombatState.TurnNumber;
+        }
+
         var combatState = card.Owner?.Creature?.CombatState;
         if (combatState == null)
         {

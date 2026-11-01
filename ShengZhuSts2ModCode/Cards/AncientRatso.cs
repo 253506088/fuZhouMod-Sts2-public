@@ -79,7 +79,7 @@ public class AncientRatso : BlackHandGangCard
 
             if (drawnCard.Type == CardType.Status || drawnCard.Type == CardType.Curse)
             {
-                await CardCmd.Exhaust(choiceContext, drawnCard);
+                _ = await CardCmd.Exhaust(choiceContext, drawnCard);
                 MainFile.Logger.Info($"【先古拉苏】抽到状态/诅咒并消耗：卡牌={drawnCard.Id.Entry}。");
                 continue;
             }

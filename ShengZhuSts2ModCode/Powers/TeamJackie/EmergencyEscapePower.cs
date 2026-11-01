@@ -103,7 +103,7 @@ public class EmergencyEscapePower : ShengZhuSts2ModPower
     /// <param name="side">当前结束回合的一方。</param>
     public override async Task AfterSideTurnEnd(PlayerChoiceContext choiceContext, CombatSide side, IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature> participants)
     {
-        if (Owner == null || side != Owner.Side)
+        if (Owner == null || side != Owner.Side || !participants.Contains(Owner))
         {
             return;
         }

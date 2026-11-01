@@ -77,7 +77,7 @@ public class Soultrap : ShengZhuSts2ModCard
         // 逐张消耗
         foreach (CardModel card in selected)
         {
-            await CardCmd.Exhaust(choiceContext, card);
+            _ = await CardCmd.Exhaust(choiceContext, card);
         }
 
         // 力量与敏捷的计算与 1 代一致：奇数张+1力量，偶数张+1敏捷

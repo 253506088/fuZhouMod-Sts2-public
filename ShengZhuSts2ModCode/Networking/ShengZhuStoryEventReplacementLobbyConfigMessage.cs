@@ -18,9 +18,9 @@ public class ShengZhuStoryEventReplacementLobbyConfigMessage : INetMessage, IPac
     private const int MessageVersion = 1;
 
     /// <summary>
-    /// 允许房主把客户端消息广播给其它客户端。
+    /// 由房主应用后重新广播给所有客户端，包括发起者，避免同时修改时各端顺序不同。
     /// </summary>
-    public bool ShouldBroadcast => true;
+    public bool ShouldBroadcast => false;
 
     /// <summary>
     /// 选人配置必须可靠传输。

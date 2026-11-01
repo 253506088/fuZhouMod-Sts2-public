@@ -352,11 +352,11 @@
   "SHENGZHUSTS2MOD-HISTORY_BOOK_SHOP_RESTOCK_PREVIEW_CARD.title": "Restock Shop",
   "SHENGZHUSTS2MOD-HISTORY_BOOK_SHOP_RESTOCK_PREVIEW_CARD.description": "For this Shop, sold merchant entries refill, and the card removal service stays available after a successful removal.\n\nFragment uses spent: *6*.",
   "SHENGZHUSTS2MOD-CURSE_TOHRU.title": "Tohru",
-  "SHENGZHUSTS2MOD-CURSE_TOHRU.description": "When drawn, Attacks cost 1 more.\nCost: {TaxState}.\nAt end of turn, if you played no Attacks this turn, lose 6 HP.",
+  "SHENGZHUSTS2MOD-CURSE_TOHRU.description": "When drawn, your next Attack costs 1 more.\nCost: {TaxState}.\nIf held at end of turn and you played no Attacks this turn, lose 6 HP.",
   "SHENGZHUSTS2MOD-CURSE_JACKIE.title": "Jackie",
   "SHENGZHUSTS2MOD-CURSE_JACKIE.description": "At end of turn, gain 1 *Weak*.",
   "SHENGZHUSTS2MOD-CURSE_JADE.title": "Jade",
   "SHENGZHUSTS2MOD-CURSE_JADE.description": "When drawn, discard 1 other card and put 1 *Dazed* on top of your draw pile.",
   "SHENGZHUSTS2MOD-CURSE_BLACK.title": "Captain Black",
-  "SHENGZHUSTS2MOD-CURSE_BLACK.description": "When drawn, Skills cost 1 more.\nCost: {TaxState}.\nAt end of turn, gain 1 *Vulnerable*."
+  "SHENGZHUSTS2MOD-CURSE_BLACK.description": "When drawn, your next Skill costs 1 more.\nCost: {TaxState}.\nIf held at end of turn, gain 1 *Vulnerable*, even after paying."
 }

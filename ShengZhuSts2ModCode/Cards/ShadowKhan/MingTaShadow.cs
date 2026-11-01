@@ -69,7 +69,7 @@ public class MingTaShadow : BaseShadowKhanCard
                 var card = attackCards[0];
                 consumedCardDamage = GetCardFaceDamage(card);
                 MainFile.Logger.Info($"【明塔噬影团】自动消耗攻击牌，本次记录伤害={consumedCardDamage}");
-                await CardCmd.Exhaust(choiceContext, card);
+                _ = await CardCmd.Exhaust(choiceContext, card);
             }
             else
             {
@@ -81,7 +81,7 @@ public class MingTaShadow : BaseShadowKhanCard
                 {
                     consumedCardDamage = GetCardFaceDamage(selected);
                     MainFile.Logger.Info($"【明塔噬影团】消耗攻击牌，本次记录伤害={consumedCardDamage}");
-                    await CardCmd.Exhaust(choiceContext, selected);
+                    _ = await CardCmd.Exhaust(choiceContext, selected);
                 }
             }
 

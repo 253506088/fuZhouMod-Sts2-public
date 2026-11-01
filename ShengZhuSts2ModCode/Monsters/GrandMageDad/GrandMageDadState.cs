@@ -10,7 +10,43 @@ public sealed class GrandMageDadState
     /// <summary>
     /// 当前状态结构版本，后续字段变化时用于兼容旧存档。
     /// </summary>
-    public int StateVersion { get; set; } = 1;
+    public int StateVersion { get; set; } = 5;
+
+    /// <summary>本场构筑评分是否已经冻结；重建怪物时仍按快照应用一次生命成长。</summary>
+    public bool GrowthInitialized { get; set; }
+
+    /// <summary>开局固定的参与人数。</summary>
+    public int PlayerCount { get; set; } = 1;
+
+    /// <summary>本场进阶等级，用于力量折算与符咒剥夺数量。</summary>
+    public int Ascension { get; set; }
+
+    /// <summary>人数调整前的基础生命，用来解释完整血量构成。</summary>
+    public int BaseHp { get; set; }
+
+    /// <summary>全队平均成长评分，不再限制三百分上限。</summary>
+    public int AverageGrowth { get; set; }
+
+    /// <summary>各玩家开局成长明细；旧存档缺少明细时留空，不用当前牌组冒充开局来源。</summary>
+    public List<GrandMageGrowthSource> GrowthSources { get; set; } = [];
+
+    /// <summary>原生人数缩放后追加的生命。</summary>
+    public int GrowthHp { get; set; }
+
+    /// <summary>生命成长按进阶除数和开局人数四舍五入得到的力量。</summary>
+    public int GrowthStrength { get; set; }
+
+    /// <summary>本场初始化完成时的最大生命，用于软上限与破封阈值。</summary>
+    public int InitialMaxHp { get; set; }
+
+    /// <summary>当前五行阵阶段；零表示没有玩家压制。</summary>
+    public int CycleStage { get; set; }
+
+    /// <summary>本轮是否已经通过累计伤害解除过封存。</summary>
+    public bool ReleasedSealsThisTurn { get; set; }
+
+    /// <summary>按玩家归属保存的临时符咒封存，不移除遗物本体。</summary>
+    public List<GrandMageTalismanSeal> SealedTalismans { get; set; } = [];
 
     /// <summary>
     /// 老爹已经执行过的行动次数。
@@ -60,7 +96,17 @@ public sealed class GrandMageDadState
 
         try
         {
-            return JsonSerializer.Deserialize<GrandMageDadState>(json) ?? new GrandMageDadState();
+            var state = JsonSerializer.Deserialize<GrandMageDadState>(json) ?? new GrandMageDadState();
+            state.SealedTalismans ??= [];
+            state.GrowthSources ??= [];
+            state.GrowthSources.RemoveAll(source => source == null);
+            foreach (var source in state.GrowthSources)
+            {
+                source.Items ??= [];
+                source.Items.RemoveAll(item => item == null || string.IsNullOrWhiteSpace(item.Entry));
+            }
+            state.SealedTalismans.RemoveAll(seal => seal == null || string.IsNullOrWhiteSpace(seal.RelicId) || seal.RemainingTurns <= 0);
+            return state;
         }
         catch (Exception ex)
         {

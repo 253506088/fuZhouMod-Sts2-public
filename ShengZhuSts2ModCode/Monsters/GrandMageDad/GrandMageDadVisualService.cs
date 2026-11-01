@@ -1,11 +1,13 @@
 using Godot;
 using BaseLib.Extensions;
 using MegaCrit.Sts2.Core.Nodes.Combat;
+using MegaCrit.Sts2.Core.Nodes.Rooms;
+using ShengZhuSts2Mod.ShengZhuSts2ModCode.Visuals;
 
 namespace ShengZhuSts2Mod.ShengZhuSts2ModCode.Monsters.GrandMageDad;
 
 /// <summary>
-/// 大法师老爹视觉服务：负责创建待机序列帧视觉，并在资源缺失时提供安全兜底。
+/// 大法师老爹视觉服务：优先创建部件动画，旧首帧只作为资源缺失时的兜底。
 /// </summary>
 internal static class GrandMageDadVisualService
 {
@@ -24,12 +26,32 @@ internal static class GrandMageDadVisualService
     /// 创建大法师老爹战斗视觉节点。
     /// </summary>
     /// <returns>可被塔2战斗房间使用的怪物视觉节点。</returns>
-    public static NCreatureVisuals CreateVisuals()
+    public static NCreatureVisuals CreateVisuals(GrandMageDad? monster = null)
     {
+        if (monster != null && ResourceLoader.Exists(GrandMageDadRig.RigScenePath))
+        {
+            Node2D rig = GrandMageDadRig.Create(monster);
+            NCreatureVisuals animatedVisuals = CreateBaseVisuals(new Vector2(360, 420));
+            animatedVisuals.AddUnique(rig);
+            GrandMageBattleInfoPanel.Attach(animatedVisuals, monster);
+            return animatedVisuals;
+        }
         Node2D body = CreateBody(out Vector2 visualSize);
         NCreatureVisuals visuals = CreateBaseVisuals(visualSize);
         visuals.AddUnique(body);
+        if (monster != null) GrandMageBattleInfoPanel.Attach(visuals, monster);
         return visuals;
+    }
+
+    /// <summary>只向仍有效的当前战斗节点发送动画请求，视觉缺失不影响命令结算。</summary>
+    public static void Play(GrandMageDad monster, string pose)
+    {
+        NCombatRoom? room = NCombatRoom.Instance;
+        if (room == null || !GodotObject.IsInstanceValid(room) || monster.VisualCreature == null) return;
+        NCreature? node = room.GetCreatureNode(monster.VisualCreature);
+        if (node == null || !GodotObject.IsInstanceValid(node) || node.Visuals == null || !GodotObject.IsInstanceValid(node.Visuals)) return;
+        Node2D? rig = node.Visuals.GetNodeOrNull<Node2D>("Visuals");
+        if (rig != null) GrandMageDadRig.Play(rig, pose);
     }
 
     /// <summary>

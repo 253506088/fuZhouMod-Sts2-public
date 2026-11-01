@@ -47,7 +47,7 @@ public class SinglePlankBridge : TeamJackieCard
 
         foreach (CardModel selectedCard in selectedCards)
         {
-            await CardCmd.Exhaust(choiceContext, selectedCard);
+            _ = await CardCmd.Exhaust(choiceContext, selectedCard);
         }
 
         int playCount = selectedCards.Count + (IsUpgraded ? 1 : 0);

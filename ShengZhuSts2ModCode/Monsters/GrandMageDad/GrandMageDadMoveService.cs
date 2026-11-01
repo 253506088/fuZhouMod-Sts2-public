@@ -14,452 +14,224 @@ using ShengZhuSts2Mod.ShengZhuSts2ModCode.Powers.GrandMageDad;
 
 namespace ShengZhuSts2Mod.ShengZhuSts2ModCode.Monsters.GrandMageDad;
 
-/// <summary>
-/// 大法师老爹行动服务：负责构建固定循环状态机和执行每个行动的基础效果。
-/// </summary>
+/// <summary>老爹的公开行动循环：有限压制、符咒封存、可打断吟唱与真实硬直。</summary>
 internal static class GrandMageDadMoveService
 {
-    private static readonly Type[] CurseTypes =
-    [
-        typeof(CurseBlack),
-        typeof(CurseJackie),
-        typeof(CurseJade),
-        typeof(CurseTohru)
-    ];
+    private static readonly Type[] CurseTypes = [typeof(CurseBlack), typeof(CurseJackie), typeof(CurseJade), typeof(CurseTohru)];
 
-    private const int ThunderDamage = 9;
-    private const int ThunderHits = 3;
-    private const int SuppressionDamage = 35;
-    private const int TalismanPursuitDamage = 20;
-    private const int BaguaDamage = 10;
-    private const int BaguaHits = 5;
-    private const int ChantBlock = 200;
-    private const int ChantArtifact = 6;
-    private const int ExecuteDamage = 999;
-    private const int DamageCapPerTurn = 250;
-
-    /// <summary>
-    /// 创建大法师老爹的第一版固定行动循环。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <returns>怪物行动状态机。</returns>
+    /// <summary>构建固定行动与破阵分支，不依赖本地随机决定意图。</summary>
     public static MonsterMoveStateMachine CreateStateMachine(MonsterModel monster)
     {
-        MoveState thunder = CreateThunderCombo(monster);
-        MoveState suppression = CreateSuppressionSeal(monster);
-        MoveState pursuit = CreateTalismanPursuit(monster);
-        MoveState bagua = CreateBaguaBarrage(monster);
-        MoveState chant = CreateUltimateSealChant(monster);
-        MoveState execute = CreateUltimateSealExecute(monster);
-
+        ArgumentNullException.ThrowIfNull(monster);
+        var dad = (GrandMageDad)monster;
+        var thunder = new MoveState(GrandMageDadMoveIds.ThunderCombo,
+            targets => AttackPhase(dad, targets, 9, 3, 1), new MultiAttackIntent(9, () => 3 + ExtraHits(dad)), new DebuffIntent(false));
+        var suppression = new MoveState(GrandMageDadMoveIds.SuppressionSeal,
+            targets => AttackPhase(dad, targets, 32, 1, 2), new MultiAttackIntent(32, () => 1 + ExtraHits(dad)), new DebuffIntent(true), new DefendIntent());
+        var pursuit = new MoveState(GrandMageDadMoveIds.TalismanPursuit,
+            targets => AttackPhase(dad, targets, 20, 1, 3), new MultiAttackIntent(20, () => 1 + ExtraHits(dad)), new DebuffIntent(false));
+        var bagua = new MoveState(GrandMageDadMoveIds.BaguaBarrage,
+            targets => AttackPhase(dad, targets, 10, 4, 4), new MultiAttackIntent(10, () => 4 + ExtraHits(dad)), new DebuffIntent(false));
+        var chant = new MoveState(GrandMageDadMoveIds.UltimateSealChant,
+            _ => BeginChant(dad), new DefendIntent(), new BuffIntent());
+        var execute = new MoveState(GrandMageDadMoveIds.UltimateSealExecute,
+            targets => ResolveChant(dad, targets), new GrandMageExecutionIntent());
+        var stagger = new MoveState(GrandMageDadMoveIds.Stagger,
+            targets => ResolveChant(dad, targets), new StunIntent());
         thunder.FollowUpState = suppression;
         suppression.FollowUpState = pursuit;
         pursuit.FollowUpState = bagua;
         bagua.FollowUpState = chant;
         chant.FollowUpState = execute;
         execute.FollowUpState = thunder;
-
-        return new MonsterMoveStateMachine(
-            new[] { thunder, suppression, pursuit, bagua, chant, execute },
-            thunder);
+        stagger.FollowUpState = thunder;
+        return new MonsterMoveStateMachine([thunder, suppression, pursuit, bagua, chant, execute, stagger], thunder);
     }
 
-    /// <summary>
-    /// 创建雷符连打行动。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <returns>行动状态。</returns>
-    private static MoveState CreateThunderCombo(MonsterModel monster)
-    {
-        return new MoveState(
-            GrandMageDadMoveIds.ThunderCombo,
-            async targets =>
-            {
-                await ExecuteSecondaryIntent(monster, GrandMageDadMoveIds.SecondaryCurseJackie);
-                await AttackAllPlayers(monster, targets, ThunderDamage, ThunderHits);
-                await LogMove(monster, GrandMageDadMoveIds.ThunderCombo, targets);
-            },
-            new MultiAttackIntent(ThunderDamage, ThunderHits));
-    }
-
-    /// <summary>
-    /// 创建镇邪法印行动。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <returns>行动状态。</returns>
-    private static MoveState CreateSuppressionSeal(MonsterModel monster)
-    {
-        return new MoveState(
-            GrandMageDadMoveIds.SuppressionSeal,
-            async targets =>
-            {
-                await ExecuteSecondaryIntent(monster, GrandMageDadMoveIds.SecondaryDefendArtifact);
-                await AttackAllPlayers(monster, targets, SuppressionDamage, 1);
-                await ApplyToPlayers<WeakPower>(monster, targets, 2);
-                await ApplyToPlayers<VulnerablePower>(monster, targets, 2);
-                await LogMove(monster, GrandMageDadMoveIds.SuppressionSeal, targets);
-            },
-            new SingleAttackIntent(SuppressionDamage),
-            new DebuffIntent(true));
-    }
-
-    /// <summary>
-    /// 创建符咒剥夺追击行动；封存符咒会在后续阶段接入。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <returns>行动状态。</returns>
-    private static MoveState CreateTalismanPursuit(MonsterModel monster)
-    {
-        return new MoveState(
-            GrandMageDadMoveIds.TalismanPursuit,
-            async targets =>
-            {
-                await ExecuteSecondaryIntent(monster, GrandMageDadMoveIds.SecondaryRandomCurse);
-                await AttackAllPlayers(monster, targets, TalismanPursuitDamage, 1);
-                await LogMove(monster, GrandMageDadMoveIds.TalismanPursuit, targets);
-            },
-            new SingleAttackIntent(TalismanPursuitDamage),
-            new DebuffIntent(false));
-    }
-
-    /// <summary>
-    /// 创建八卦连轰行动。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <returns>行动状态。</returns>
-    private static MoveState CreateBaguaBarrage(MonsterModel monster)
-    {
-        return new MoveState(
-            GrandMageDadMoveIds.BaguaBarrage,
-            async targets =>
-            {
-                await ExecuteSecondaryIntent(monster, GrandMageDadMoveIds.SecondarySealTalisman);
-                await AttackAllPlayers(monster, targets, BaguaDamage, BaguaHits);
-                await LogMove(monster, GrandMageDadMoveIds.BaguaBarrage, targets);
-            },
-            new MultiAttackIntent(BaguaDamage, BaguaHits));
-    }
-
-    /// <summary>
-    /// 创建终极封印吟唱行动。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <returns>行动状态。</returns>
-    private static MoveState CreateUltimateSealChant(MonsterModel monster)
-    {
-        return new MoveState(
-            GrandMageDadMoveIds.UltimateSealChant,
-            async targets =>
-            {
-                await ExecuteSecondaryIntent(monster, GrandMageDadMoveIds.SecondaryDoubleCurse);
-                SetChantState(monster, true);
-                await PowerCmd.Apply<GrandMageChantShieldPower>(monster.Creature, ChantBlock, monster.Creature, null);
-                await CreatureCmd.GainBlock(monster.Creature, ChantBlock, ValueProp.Unpowered, null);
-                await PowerCmd.Apply<ArtifactPower>(monster.Creature, ChantArtifact, monster.Creature, null);
-                await LogMove(monster, GrandMageDadMoveIds.UltimateSealChant, targets);
-            },
-            new DefendIntent(),
-            new BuffIntent());
-    }
-
-    /// <summary>
-    /// 创建终极封印处决行动；第一版用高额攻击占位，后续接吟唱护盾判定。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <returns>行动状态。</returns>
-    private static MoveState CreateUltimateSealExecute(MonsterModel monster)
-    {
-        return new MoveState(
-            GrandMageDadMoveIds.UltimateSealExecute,
-            async targets =>
-            {
-                SetSecondaryIntent(monster, GrandMageDadMoveIds.SecondaryNone);
-                if (CanExecuteUltimateSeal(monster))
-                {
-                    await AttackAllPlayers(monster, targets, ExecuteDamage, 1);
-                    ShengZhuLogHelper.VerboseCombatInfo(() => "【大法师老爹】吟唱护盾仍在，终极封印处决生效。");
-                }
-                else
-                {
-                    ShengZhuLogHelper.VerboseCombatInfo(() => "【大法师老爹】吟唱护盾已破或未处于吟唱状态，跳过终极封印处决。");
-                }
-
-                SetChantState(monster, false);
-                await RemoveChantShieldPower(monster);
-                await LogMove(monster, GrandMageDadMoveIds.UltimateSealExecute, targets);
-            },
-            new SingleAttackIntent(ExecuteDamage));
-    }
-
-    /// <summary>
-    /// 确保老爹战斗开局核心能力已经挂载。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <returns>异步任务。</returns>
+    /// <summary>进入房间后完成成长和核心能力初始化。</summary>
     public static async Task EnsureOpeningPowers(MonsterModel monster)
     {
-        Creature creature = monster.Creature;
-        if (creature == null || creature.IsDead || !creature.IsAlive)
-        {
-            return;
-        }
-
+        if (monster is not GrandMageDad dad || dad.Creature?.IsAlive != true) return;
+        await GrandMageDadBalance.Initialize(dad);
+        if (dad.CombatState?.Encounter is not GrandMageDadEncounter encounter) return;
+        var creature = dad.Creature;
         if (!creature.HasPower<GrandMageDamageCapPower>())
-        {
-            await PowerCmd.Apply<GrandMageDamageCapPower>(creature, DamageCapPerTurn, creature, null);
-        }
-
+            await PowerCmd.Apply<GrandMageDamageCapPower>(creature, GrandMageDadBalance.DamageCap(encounter.State.PlayerCount), creature, null);
         if (!creature.HasPower<GrandMageBlessingPower>())
+            await PowerCmd.Apply<GrandMageBlessingPower>(creature, GrandMageDadBalance.BlessingNegates(encounter.State.PlayerCount, encounter.State.Ascension), creature, null);
+        if (encounter.State.GrowthStrength > 0 && !creature.HasPower<GrandMageCounterPouncePower>())
         {
-            await PowerCmd.Apply<GrandMageBlessingPower>(creature, 2, creature, null);
+            var power = await PowerCmd.Apply<GrandMageCounterPouncePower>(creature, encounter.State.GrowthStrength, creature, null);
+            power?.Configure(encounter.State.GrowthHp, encounter.State.PlayerCount);
+            await PowerCmd.Apply<StrengthPower>(creature, encounter.State.GrowthStrength, creature, null);
         }
+        // 给玩家一个自由先手回合，第一次雷符连打后才进入金阵。
+        await ApplyStage(dad, 0);
+    }
 
-        if (!creature.HasPower<GrandMageCounterPouncePower>())
+    /// <summary>执行攻击主意图与可读的副效果，最后为玩家下一回合设置阵法。</summary>
+    private static async Task AttackPhase(GrandMageDad dad, IReadOnlyList<Creature> targets, int damage, int hits, int stage)
+    {
+        if (!CanAct(dad, out GrandMageDadState state)) return;
+        state.TurnIndex++;
+        GrandMageDadVisualService.Play(dad, stage switch { 1 => "thunder", 2 => "seal", 3 => "talisman", _ => "barrage" });
+        if (stage == 1) await AddCurses(dad, false);
+        if (stage == 2)
         {
-            int playerCount = Math.Max(1, creature.CombatState?.Players.Count ?? 1);
-            int dynamicHpBonus = 0;
-            int pounceStrength = Math.Max(0, dynamicHpBonus / 30 / playerCount);
-            GrandMageCounterPouncePower? pouncePower = await PowerCmd.Apply<GrandMageCounterPouncePower>(creature, pounceStrength, creature, null);
-            pouncePower?.Configure(dynamicHpBonus, playerCount);
-            if (pounceStrength > 0)
+            await CreatureCmd.GainBlock(dad.Creature, (state.PlayerCount > 1 ? 20 : 16) * state.PlayerCount, ValueProp.Unpowered, null);
+            await CreatureCmd.Heal(dad.Creature, (dad.Creature.MaxHp - dad.Creature.CurrentHp) / 8);
+            await PowerCmd.Apply<ArtifactPower>(dad.Creature, 1, dad.Creature, null);
+        }
+        if (stage == 3)
+        {
+            await GrandMageDadSealService.SealPlayers(dad);
+            await AddCurses(dad, true);
+        }
+        await AttackAllPlayers(dad, targets, damage, hits + ExtraHits(dad));
+        if (dad.Creature.GetPower<GrandMageSealPower>() is { } sealPower) await sealPower.AfterAttack();
+        if (!dad.Creature.IsAlive) return;
+        if (stage == 2)
+        {
+            foreach (Player player in LivingPlayers(dad))
             {
-                await PowerCmd.Apply<StrengthPower>(creature, pounceStrength, creature, null);
+                await PowerCmd.Apply<WeakPower>(player.Creature, 1, dad.Creature, null);
+                await PowerCmd.Apply<VulnerablePower>(player.Creature, 1, dad.Creature, null);
             }
         }
+        await ApplyStage(dad, stage);
+        state.SecondaryIntentCode = stage switch
+        {
+            1 => GrandMageDadMoveIds.SecondaryCurseJackie,
+            2 => GrandMageDadMoveIds.SecondaryDefendArtifact,
+            3 => GrandMageDadMoveIds.SecondarySealTalisman,
+            _ => GrandMageDadMoveIds.SecondaryNone
+        };
+        MainFile.Logger.Info($"【老爹行动】轮次={state.TurnIndex}，阵法={stage}，攻击={damage}×{hits}，封存数={state.SealedTalismans.Count}。");
     }
 
-    /// <summary>
-    /// 执行当前回合副意图；阶段三先接入诅咒相关副意图，其余副意图只记录日志。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <param name="secondaryIntentCode">副意图代码。</param>
-    /// <returns>异步任务。</returns>
-    private static async Task ExecuteSecondaryIntent(MonsterModel monster, string secondaryIntentCode)
+    /// <summary>清掉其他阵法，给予完整的破盾窗口；护盾只按人数放大一次。</summary>
+    private static async Task BeginChant(GrandMageDad dad)
     {
-        SetSecondaryIntent(monster, secondaryIntentCode);
-        switch (secondaryIntentCode)
+        if (!CanAct(dad, out GrandMageDadState state)) return;
+        await ApplyStage(dad, 0);
+        state.TurnIndex++;
+        state.CycleStage = 5;
+        state.SecondaryIntentCode = GrandMageDadMoveIds.SecondaryNone;
+        state.IsChanting = true;
+        state.ChantShieldAmount = GrandMageDadBalance.ChantBlock(state.GrowthHp);
+        if (dad.Creature.Block > 0) await CreatureCmd.LoseBlock(new BlockingPlayerChoiceContext(), dad.Creature, dad.Creature.Block, dad.Creature);
+        await PowerCmd.Apply<GrandMageChantShieldPower>(dad.Creature, state.ChantShieldAmount, dad.Creature, null);
+        await CreatureCmd.GainBlock(dad.Creature, state.ChantShieldAmount, ValueProp.Unpowered, null);
+        GrandMageDadVisualService.Play(dad, "chant");
+        MainFile.Logger.Info($"【老爹吟唱】护盾={dad.Creature.Block}，人数={state.PlayerCount}；下回合前破盾可解除封存并造成硬直。");
+    }
+
+    /// <summary>未破盾时全队各结算一次斩杀，允许一次复活；破盾则硬直。</summary>
+    private static async Task ResolveChant(GrandMageDad dad, IReadOnlyList<Creature> targets)
+    {
+        if (!CanAct(dad, out GrandMageDadState state)) return;
+        state.TurnIndex++;
+        bool execute = state.IsChanting && dad.Creature.Block > 0;
+        state.IsChanting = false;
+        state.ChantShieldAmount = 0;
+        state.CycleStage = 0;
+        await PowerCmd.Remove(dad.Creature.GetPower<GrandMageChantShieldPower>());
+        if (execute)
         {
-            case GrandMageDadMoveIds.SecondaryCurseJackie:
-                await AddCurseToAllPlayers(monster, typeof(CurseJackie), 1);
-                break;
-            case GrandMageDadMoveIds.SecondaryRandomCurse:
-                await AddRandomCursesToAllPlayers(monster, 1, false, secondaryIntentCode);
-                break;
-            case GrandMageDadMoveIds.SecondaryDoubleCurse:
-                await AddRandomCursesToAllPlayers(monster, 2, true, secondaryIntentCode);
-                break;
-            default:
-                ShengZhuLogHelper.VerboseCombatInfo(() => $"【联机同步】【大法师老爹】副意图={secondaryIntentCode}，阶段三暂不执行额外效果。");
-                break;
+            GrandMageDadVisualService.Play(dad, "release");
+            await GrandMageExecutionService.Execute(dad);
+        }
+        else
+        {
+            GrandMageDadVisualService.Play(dad, "stagger");
+            if (dad.CombatState.Encounter is GrandMageDadEncounter encounter)
+                await GrandMageDadSealService.ReleaseAll(encounter, "破阵硬直");
+        }
+        if (dad.Creature.IsAlive && dad.Creature.Block > 0)
+            await CreatureCmd.LoseBlock(new BlockingPlayerChoiceContext(), dad.Creature, dad.Creature.Block, dad.Creature);
+        MainFile.Logger.Info($"【老爹吟唱】结果={(execute ? "未破盾，全队斩杀各结算一次" : "破阵成功，硬直一回合")}。");
+    }
+
+    /// <summary>打破吟唱后立即公开硬直意图，避免画面仍显示重击。</summary>
+    internal static async Task InterruptChant(GrandMageDad dad)
+    {
+        if (!CanAct(dad, out GrandMageDadState state) || !state.IsChanting) return;
+        state.IsChanting = false;
+        state.ChantShieldAmount = 0;
+        if (dad.CombatState.Encounter is GrandMageDadEncounter encounter)
+            await GrandMageDadSealService.ReleaseAll(encounter, "打破吟唱护盾");
+        if (dad.NextMove.Id == GrandMageDadMoveIds.UltimateSealExecute
+            && dad.MoveStateMachine?.States.TryGetValue(GrandMageDadMoveIds.Stagger, out var stagger) == true
+            && stagger is MoveState move)
+            dad.SetMoveImmediate(move, true);
+        GrandMageDadVisualService.Play(dad, "stagger");
+        MainFile.Logger.Info("【老爹破阵】吟唱已打断，切换为硬直意图并解除全队封存。");
+    }
+
+    /// <summary>替换每名玩家自己的压制能力，不叠加上一阶段计数。</summary>
+    private static async Task ApplyStage(GrandMageDad dad, int stage)
+    {
+        if (!CanAct(dad, out GrandMageDadState state)) return;
+        state.CycleStage = stage;
+        foreach (Player player in LivingPlayers(dad))
+        {
+            await PowerCmd.Remove(player.Creature.GetPower<GrandMageCyclePower>());
+            if (stage > 0) await PowerCmd.Apply<GrandMageCyclePower>(player.Creature, stage, dad.Creature, null);
         }
     }
 
-    /// <summary>
-    /// 记录当前副意图，方便存档和后续双意图 UI 读取。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <param name="secondaryIntentCode">副意图代码。</param>
-    private static void SetSecondaryIntent(MonsterModel monster, string secondaryIntentCode)
+    /// <summary>为存活玩家加入一张诅咒；随机池在队伍内轮换，耗尽后才重复。</summary>
+    private static async Task AddCurses(GrandMageDad dad, bool random)
     {
-        if (monster.CombatState?.Encounter is GrandMageDadEncounter encounter)
+        List<Type> remaining = CurseTypes.ToList();
+        foreach (Player player in LivingPlayers(dad))
         {
-            encounter.State.SecondaryIntentCode = secondaryIntentCode;
+            if (remaining.Count == 0) remaining = CurseTypes.ToList();
+            Type selected = random
+                ? StableRandomHelper.PickByStableHash(player, remaining, "GrandMageCurse", type => type.Name, dad.CombatState.RoundNumber.ToString()) ?? typeof(CurseJackie)
+                : typeof(CurseJackie);
+            remaining.Remove(selected);
+            CardModel? prototype = ModelDb.AllCards.FirstOrDefault(card => card.GetType() == selected);
+            if (prototype == null) continue;
+            // 限制当前战斗牌堆中的老爹诅咒总量，长局不会被无限塞满。
+            int existing = player.PlayerCombatState?.AllPiles.SelectMany(pile => pile.Cards).Count(card => card is GrandMageDadCurseCard) ?? 0;
+            if (existing >= 4) continue;
+            var curse = dad.CombatState.CreateCard(prototype, player);
+            await CardPileCmdHelper.AddGeneratedCardToCombat(curse, PileType.Discard, false);
         }
     }
 
-    /// <summary>
-    /// 向所有存活玩家弃牌堆加入指定老爹诅咒。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <param name="curseType">诅咒牌类型。</param>
-    /// <param name="count">每名玩家加入数量。</param>
-    /// <returns>异步任务。</returns>
-    private static async Task AddCurseToAllPlayers(MonsterModel monster, Type curseType, int count)
+    /// <summary>按稳定玩家顺序逐段攻击，反伤杀死老爹或目标后停止后续段数。</summary>
+    private static async Task AttackAllPlayers(GrandMageDad dad, IReadOnlyList<Creature> targets, int damage, int hits)
     {
-        foreach (Player player in GetLivingPlayers(monster))
+        var context = new BlockingPlayerChoiceContext();
+        for (int hit = 0; hit < hits && dad.Creature?.IsAlive == true; hit++)
         {
-            for (int i = 0; i < count; i++)
-            {
-                await AddCurseToPlayer(monster, player, curseType);
-            }
+            var living = targets.Where(target => target.IsAlive).OrderBy(target => target.Player?.NetId ?? 0).ToList();
+            if (living.Count == 0) break;
+            await DealDamage(context, living, damage, ValueProp.Move, dad.Creature);
         }
     }
 
-    /// <summary>
-    /// 向所有存活玩家弃牌堆加入随机老爹诅咒。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <param name="count">每名玩家加入数量。</param>
-    /// <param name="distinct">是否要求同一名玩家本次不重复。</param>
-    /// <param name="scope">稳定随机作用域。</param>
-    /// <returns>异步任务。</returns>
-    private static async Task AddRandomCursesToAllPlayers(MonsterModel monster, int count, bool distinct, string scope)
+    /// <summary>隔离正式版与 beta 的伤害命令签名差异，其他机制共用同一逻辑。</summary>
+    internal static Task DealDamage(PlayerChoiceContext context, IReadOnlyList<Creature> targets, decimal damage, ValueProp props, Creature? source)
     {
-        foreach (Player player in GetLivingPlayers(monster))
-        {
-            List<Type> remainingTypes = GetOrderedCurseTypes();
-            for (int i = 0; i < count && remainingTypes.Count > 0; i++)
-            {
-                Type? curseType = StableRandomHelper.PickByStableHash(
-                    player,
-                    remainingTypes,
-                    scope,
-                    type => type.Name,
-                    i.ToString(),
-                    monster.CombatState?.RoundNumber.ToString() ?? "0");
-                if (curseType == null)
-                {
-                    continue;
-                }
-
-                await AddCurseToPlayer(monster, player, curseType);
-                if (distinct)
-                {
-                    remainingTypes.Remove(curseType);
-                }
-            }
-        }
+        return CreatureCmd.Damage(context, targets, damage, props, source, null, null);
     }
 
-    /// <summary>
-    /// 向指定玩家弃牌堆加入一张老爹诅咒。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <param name="player">目标玩家。</param>
-    /// <param name="curseType">诅咒牌类型。</param>
-    /// <returns>异步任务。</returns>
-    private static async Task AddCurseToPlayer(MonsterModel monster, Player player, Type curseType)
+    /// <summary>获取按网络编号排序的存活玩家。</summary>
+    private static IEnumerable<Player> LivingPlayers(GrandMageDad dad) => dad.CombatState.Players
+        .Where(player => player.Creature.IsAlive).OrderBy(player => player.NetId);
+
+    /// <summary>实际攻击与头顶意图共用兔符咒的额外段数。</summary>
+    private static int ExtraHits(GrandMageDad dad) => dad.Creature?.GetPower<GrandMageSealPower>()?.ExtraHits ?? 0;
+
+    /// <summary>动作执行前确认当前怪物和遭遇仍然有效。</summary>
+    private static bool CanAct(GrandMageDad dad, out GrandMageDadState state)
     {
-        CardModel? prototype = ModelDb.AllCards.FirstOrDefault(card => card.GetType() == curseType);
-        if (prototype == null)
-        {
-            MainFile.Logger.Info($"【联机异常兜底】【大法师老爹】副意图塞诅咒失败：未找到卡牌原型={curseType.Name}。");
-            return;
-        }
-
-        CardModel curse = monster.CombatState.CreateCard(prototype, player);
-        await CardPileCmdHelper.AddGeneratedCardToCombat(curse, PileType.Discard, false);
-        ShengZhuLogHelper.VerboseCombatInfo(() => $"【联机同步】【大法师老爹】副意图塞诅咒：玩家={player.NetId}，卡牌={curse.Id.Entry}，目标牌堆=弃牌堆。");
-    }
-
-    /// <summary>
-    /// 获取按类型名稳定排序的老爹诅咒类型。
-    /// </summary>
-    /// <returns>老爹诅咒类型列表。</returns>
-    private static List<Type> GetOrderedCurseTypes()
-    {
-        return CurseTypes.OrderBy(type => type.Name, StringComparer.Ordinal).ToList();
-    }
-
-    /// <summary>
-    /// 获取当前战斗所有存活玩家，按联机 ID 稳定排序。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <returns>存活玩家列表。</returns>
-    private static IReadOnlyList<Player> GetLivingPlayers(MonsterModel monster)
-    {
-        return monster.CombatState?.Players
-            .Where(player => player.Creature is { IsAlive: true, IsDead: false })
-            .OrderBy(player => player.NetId)
-            .ToList() ?? [];
-    }
-
-    /// <summary>
-    /// 更新老爹遭遇里的吟唱状态。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <param name="isChanting">是否正在吟唱。</param>
-    private static void SetChantState(MonsterModel monster, bool isChanting)
-    {
-        if (monster.CombatState?.Encounter is not GrandMageDadEncounter encounter)
-        {
-            return;
-        }
-
-        encounter.State.IsChanting = isChanting;
-        encounter.State.ChantShieldAmount = isChanting ? ChantBlock : 0;
-    }
-
-    /// <summary>
-    /// 判断吟唱处决是否可以发动。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <returns>护盾仍在且处于吟唱状态时返回 true。</returns>
-    private static bool CanExecuteUltimateSeal(MonsterModel monster)
-    {
-        if (monster.Creature == null || monster.Creature.Block <= 0)
-        {
-            return false;
-        }
-
-        bool isChanting = monster.CombatState?.Encounter is GrandMageDadEncounter encounter && encounter.State.IsChanting;
-        return isChanting && monster.Creature.HasPower<GrandMageChantShieldPower>();
-    }
-
-    /// <summary>
-    /// 移除吟唱标记能力。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <returns>异步任务。</returns>
-    private static async Task RemoveChantShieldPower(MonsterModel monster)
-    {
-        GrandMageChantShieldPower? power = monster.Creature?.GetPower<GrandMageChantShieldPower>();
-        if (power != null)
-        {
-            await PowerCmd.Remove(power);
-        }
-    }
-
-    /// <summary>
-    /// 对所有存活玩家执行攻击；多段攻击按段数依次结算。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <param name="targets">原生传入的玩家目标。</param>
-    /// <param name="damage">每段伤害。</param>
-    /// <param name="hitCount">攻击段数。</param>
-    /// <returns>异步任务。</returns>
-    private static async Task AttackAllPlayers(MonsterModel monster, IReadOnlyList<Creature> targets, int damage, int hitCount)
-    {
-        IReadOnlyList<Creature> livingTargets = targets.Where(target => target.IsAlive && !target.IsDead).ToList();
-        if (livingTargets.Count == 0)
-        {
-            return;
-        }
-
-        for (int i = 0; i < hitCount; i++)
-        {
-            await CreatureCmd.Damage(new BlockingPlayerChoiceContext(), livingTargets, damage, ValueProp.Move, monster.Creature, null, null);
-        }
-    }
-
-    /// <summary>
-    /// 对所有存活玩家施加指定能力。
-    /// </summary>
-    /// <typeparam name="TPower">能力类型。</typeparam>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <param name="targets">原生传入的玩家目标。</param>
-    /// <param name="amount">施加层数。</param>
-    /// <returns>异步任务。</returns>
-    private static async Task ApplyToPlayers<TPower>(MonsterModel monster, IReadOnlyList<Creature> targets, int amount)
-        where TPower : PowerModel
-    {
-        foreach (Creature target in targets.Where(target => target.IsAlive && !target.IsDead))
-        {
-            await PowerCmd.Apply<TPower>(target, amount, monster.Creature, null);
-        }
-    }
-
-    /// <summary>
-    /// 写入行动日志，方便单人和联机排查当前循环是否一致。
-    /// </summary>
-    /// <param name="monster">老爹怪物模型。</param>
-    /// <param name="moveId">行动 ID。</param>
-    /// <param name="targets">本次行动目标。</param>
-    /// <returns>异步任务。</returns>
-    private static Task LogMove(MonsterModel monster, string moveId, IReadOnlyList<Creature> targets)
-    {
-        string targetNames = string.Join(",", targets.Select(target => target.Name));
-        ShengZhuLogHelper.VerboseCombatInfo(() => $"【联机同步】【大法师老爹】动作={moveId}，目标=[{targetNames}]，怪物={monster.Id.Entry}。");
-        return Task.CompletedTask;
+        state = null!;
+        if (dad.Creature?.IsAlive != true || dad.CombatState?.Encounter is not GrandMageDadEncounter encounter) return false;
+        state = encounter.State;
+        return true;
     }
 }

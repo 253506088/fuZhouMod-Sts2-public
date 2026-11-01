@@ -6,6 +6,7 @@ namespace ShengZhuSts2Mod.ShengZhuSts2ModCode.Monsters.GrandMageDad;
 public static class GrandMageDadRegistry
 {
     private static GrandMageDadEncounter? _encounter;
+    private static GrandMageTrialEncounter? _trialEncounter;
 
     /// <summary>
     /// 确保大法师老爹相关模型被 ModelDb 和 BaseLib 注册。
@@ -14,6 +15,7 @@ public static class GrandMageDadRegistry
     {
         bool isCreated = _encounter == null;
         _encounter ??= new GrandMageDadEncounter();
-        MainFile.Logger.Info($"【大法师老爹】独立 Boss 遭遇注册检查完成：本次新建={isCreated}，遭遇类型={_encounter.GetType().FullName}，遭遇ID={_encounter.Id}，房间类型={_encounter.RoomType}，当前不会自动加入任何楼层。");
+        _trialEncounter ??= new GrandMageTrialEncounter();
+        MainFile.Logger.Info($"【大法师老爹】遭遇注册完成：本次新建={isCreated}，调试遭遇={_encounter.Id}，第三章试炼遭遇={_trialEncounter.Id}，均不加入关底或普通精英池。");
     }
 }

@@ -22,7 +22,7 @@ using ShengZhuSts2Mod.ShengZhuSts2ModCode.Rewards;
 namespace ShengZhuSts2Mod.ShengZhuSts2ModCode.Relics;
 
 /// <summary>
-/// 潘库宝盒：标记前路精英/怪物房为恶魔之门，战胜后提供恶魔卡、直接附魔、寄宿魔气三选一。
+    /// 潘库宝盒：沿可达路线每层最多标记一个恶魔门，战胜后提供恶魔卡、直接附魔、寄宿魔气三选一。
 /// </summary>
 public class PanKuBox : ShengZhuSts2ModRelic
 {
@@ -65,7 +65,13 @@ public class PanKuBox : ShengZhuSts2ModRelic
     public string MarkedCoordsCsv { get; set; } = string.Empty;
 
     /// <summary>
-    /// 保存已经生成过地狱之门的地图标识，避免同一层反复补门。
+    /// 记录由普通战斗转成的恶魔门，调整未来路线时可还原，避免累积额外精英。
+    /// </summary>
+    [SavedProperty(SerializationCondition.AlwaysSave)]
+    public string ConvertedCoordsCsv { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 保存地狱之门所属章节；跨章清空旧坐标，同章只调整失效的未来门。
     /// </summary>
     [SavedProperty(SerializationCondition.AlwaysSave)]
     public string GeneratedMapKey { get; set; } = string.Empty;
@@ -144,6 +150,9 @@ public class PanKuBox : ShengZhuSts2ModRelic
         RecycleLostQiFromSnapshot(Owner);
         InvokeDisplayAmountChanged();
         EightDemonPossessionHelper.CheckAndTriggerAwakening(Owner);
+
+        // 房间进入由游戏同步钩子驱动，改走岔路后及时修复前路，不依赖本地是否打开地图。
+        RestoreOrGenerateMapMarks(Owner?.RunState?.Map);
 
         if (Owner == null || room is not CombatRoom combatRoom || Owner.RunState.CurrentMapCoord == null)
         {
@@ -500,7 +509,7 @@ public class PanKuBox : ShengZhuSts2ModRelic
     /// <param name="map">当前地图。</param>
     private void RestoreOrGenerateMapMarks(ActMap? map)
     {
-        if (Owner == null || map == null)
+        if (Owner == null || map == null || map is NullActMap)
         {
             return;
         }
@@ -513,6 +522,7 @@ public class PanKuBox : ShengZhuSts2ModRelic
         }
 
         MarkedCoordsCsv = string.Empty;
+        ConvertedCoordsCsv = string.Empty;
         PendingRewardKind = string.Empty;
         PendingRewardCoord = string.Empty;
         GeneratedMapKey = mapKey;
@@ -526,7 +536,7 @@ public class PanKuBox : ShengZhuSts2ModRelic
     /// <param name="map">当前地图。</param>
     private void GenerateMapMarksOnce(ActMap? map)
     {
-        if (Owner == null || map == null)
+        if (Owner == null || map == null || map is NullActMap)
         {
             return;
         }
@@ -539,6 +549,7 @@ public class PanKuBox : ShengZhuSts2ModRelic
         }
 
         MarkedCoordsCsv = string.Empty;
+        ConvertedCoordsCsv = string.Empty;
         PendingRewardKind = string.Empty;
         PendingRewardCoord = string.Empty;
         GeneratedMapKey = mapKey;
@@ -547,7 +558,7 @@ public class PanKuBox : ShengZhuSts2ModRelic
     }
 
     /// <summary>
-    /// 只恢复已经存在的地狱之门视觉，不新增节点。
+    /// 保留当前战斗与有效旧门，修复未来冲突或不可达标记并补齐缺失魔气。
     /// </summary>
     /// <param name="map">当前地图。</param>
     private void RestoreExistingMapMarks(ActMap map)
@@ -557,23 +568,13 @@ public class PanKuBox : ShengZhuSts2ModRelic
             return;
         }
 
-        if (CountMissingKinds(Owner) == 0)
-        {
-            if (!string.IsNullOrEmpty(MarkedCoordsCsv))
-            {
-                MarkedCoordsCsv = string.Empty;
-                MainFile.Logger.Info("【潘库宝盒】八魔气已集齐，清理未来地狱之门标记。");
-            }
-
-            return;
-        }
-
         EnsureMarkedGateKinds(Owner, map);
+        MarkMapNodes(map);
         PanKuDemonQiHelper.RestoreMapQuestMarks(this, map);
     }
 
     /// <summary>
-    /// 生成当前地图上后续节点为恶魔门。
+    /// 将缺失魔气安排在同一条可达路线的不同层，刷新时优先保留有效绑定。
     /// </summary>
     private void MarkMapNodes(ActMap? map)
     {
@@ -583,56 +584,75 @@ public class PanKuBox : ShengZhuSts2ModRelic
         }
 
         int needed = CountMissingKinds(Owner);
-        if (needed <= 0)
+        if (Owner.RunState.CurrentMapCoord is MapCoord currentCoord
+            && (TryGetPendingKindFor(currentCoord) ?? TryGetMarkedKindFor(currentCoord)) is PanKuDemonQiKind currentKind
+            && !PanKuDemonQiHelper.CollectOwnedKinds(Owner, this).Contains(currentKind))
         {
-            MarkedCoordsCsv = string.Empty;
-            MainFile.Logger.Info("【潘库宝盒】八魔气已集齐，本层不生成地狱之门。");
-            return;
+            needed--;
         }
-
+        List<MapPoint> selected = PanKuMapRouteHelper.ChoosePoints(map, Owner.RunState.CurrentMapCoord,
+            needed, this, point => GetStablePointScore(Owner, point));
+        ReconcileFutureGates(map, selected);
         Queue<PanKuDemonQiKind> newKinds = new(ChooseKindsForNewMarkedPoints(Owner, map, needed));
-        if (newKinds.Count == 0)
+        foreach (MapPoint point in selected)
         {
-            MainFile.Logger.Info("【潘库宝盒】没有可绑定的缺失魔气，跳过新增恶魔门。");
-            return;
+            if (HasMarkedCoord(point.coord)) continue;
+            if (!TryAddMarkedPoint(point, newKinds)) break;
+            if (point.PointType == MapPointType.Monster)
+            {
+                List<MarkedGate> converted = ParseMarkedGates(ConvertedCoordsCsv);
+                converted.Add(new MarkedGate { Coord = point.coord });
+                ConvertedCoordsCsv = FormatMarkedGates(converted);
+                point.PointType = MapPointType.Elite;
+            }
         }
 
-        int currentRow = Owner.RunState.CurrentMapCoord?.row ?? -1;
-        List<MapPoint> elites = [];
-        List<MapPoint> monsters = [];
-        foreach (MapPoint point in map.GetAllMapPoints())
+        if (newKinds.Count > 0)
         {
-            if (point.coord.row <= currentRow || HasMarkedCoord(point.coord) || !point.CanBeModified)
+            MainFile.Logger.Info($"【潘库宝盒】当前可达路线战斗层不足：未来恶魔门={selected.Count}，本章未安排魔气={newKinds.Count}，未收集部分下一章继续生成。");
+        }
+    }
+
+    /// <summary>
+    /// 清理过期、同层或岔路标记，只还原本宝盒转换的未来节点，不改当前战斗和其他玩家任务。
+    /// </summary>
+    private void ReconcileFutureGates(ActMap map, List<MapPoint> selected)
+    {
+        if (Owner == null) return;
+        int currentRow = Owner.RunState.CurrentMapCoord?.row ?? map.StartingMapPoint.coord.row;
+        HashSet<PanKuDemonQiKind> owned = PanKuDemonQiHelper.CollectOwnedKinds(Owner, this);
+        HashSet<PanKuDemonQiKind> used = [];
+        List<MarkedGate> retained = [];
+        foreach (MarkedGate gate in ParseMarkedGates(MarkedCoordsCsv).OrderBy(gate => gate.Coord.row).ThenBy(gate => gate.Coord.col))
+        {
+            bool current = Owner.RunState.CurrentMapCoord is MapCoord coord && IsSameCoord(coord, gate.Coord);
+            bool future = gate.Coord.row > currentRow && selected.Any(point => IsSameCoord(point.coord, gate.Coord))
+                && gate.Kind is PanKuDemonQiKind kind && !owned.Contains(kind) && used.Add(kind);
+            if (current || future)
             {
+                retained.Add(gate);
                 continue;
             }
 
-            if (point.PointType == MapPointType.Elite)
+            MainFile.Logger.Info($"【潘库宝盒】移除已过期或路线冲突的恶魔门：坐标={FormatCoord(gate.Coord)}，魔气={gate.Kind?.ToString() ?? "未绑定"}。");
+        }
+
+        MarkedCoordsCsv = FormatMarkedGates(retained);
+        List<MarkedGate> converted = ParseMarkedGates(ConvertedCoordsCsv);
+        foreach (MapPoint point in map.GetAllMapPoints())
+        {
+            if (HasMarkedCoord(point.coord)) continue;
+            if (point.Quests.Contains(this)) point.RemoveQuest(this);
+            if (point.coord.row > currentRow && point.PointType == MapPointType.Elite
+                && converted.Any(gate => IsSameCoord(gate.Coord, point.coord)) && point.Quests.Count == 0
+                && !Owner.RunState.Players.Select(player => player.GetRelic<PanKuBox>())
+                    .OfType<PanKuBox>().Any(other => other != this && other.HasMarkedCoord(point.coord)))
             {
-                elites.Add(point);
-            }
-            else if (point.PointType == MapPointType.Monster)
-            {
-                monsters.Add(point);
+                point.PointType = MapPointType.Monster;
             }
         }
 
-        int marked = 0;
-        foreach (MapPoint point in elites.OrderBy(point => GetStablePointScore(Owner, point)))
-        {
-            if (marked >= needed) break;
-            if (!TryAddMarkedPoint(point, newKinds)) break;
-            marked++;
-        }
-
-        foreach (MapPoint point in monsters.OrderBy(point => GetStablePointScore(Owner, point)))
-        {
-            if (marked >= needed) break;
-            if (newKinds.Count == 0) break;
-            point.PointType = MapPointType.Elite;
-            if (!TryAddMarkedPoint(point, newKinds)) break;
-            marked++;
-        }
+        ConvertedCoordsCsv = FormatMarkedGates(converted.Where(gate => HasMarkedCoord(gate.Coord)));
     }
 
     /// <summary>
@@ -754,8 +774,10 @@ public class PanKuBox : ShengZhuSts2ModRelic
     {
         HashSet<PanKuDemonQiKind> owned = PanKuDemonQiHelper.CollectOwnedKinds(player, this);
         HashSet<PanKuDemonQiKind> marked = GetFutureMarkedKinds(player, map);
+        PanKuDemonQiKind? pending = Owner?.RunState.CurrentMapCoord is MapCoord coord
+            ? TryGetPendingKindFor(coord) ?? TryGetMarkedKindFor(coord) : null;
         return PanKuDemonQiHelper.AllKinds
-            .Where(kind => !owned.Contains(kind) && !marked.Contains(kind))
+            .Where(kind => !owned.Contains(kind) && !marked.Contains(kind) && kind != pending)
             .OrderBy(kind => GetStableKindScore(player, kind))
             .Take(count)
             .ToList();

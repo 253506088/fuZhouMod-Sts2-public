@@ -61,8 +61,8 @@ public class TigerTalismanYang : TeamJackieCard
     /// <returns>本次参与扣减的手牌张数。</returns>
     private static decimal CalculateReductionCount(CardModel card)
     {
-        int handCount = card.Owner?.PlayerCombatState?.Hand.Cards.Count ?? 0;
-        int otherHandCount = Math.Max(0, handCount - 1);
+        // 出牌结算时本牌已经离开手牌；只排除仍在手牌中的本牌实例。
+        int otherHandCount = card.Owner?.PlayerCombatState?.Hand.Cards.Count(other => !ReferenceEquals(other, card)) ?? 0;
         int currentBaseDamage = BaseDamage + (card.IsUpgraded ? UpgradeDamage : 0);
         int maxReductionCount = Math.Max(0, (currentBaseDamage - MinimumBaseDamage) / DamageReductionPerOtherCard);
         return Math.Min(otherHandCount, maxReductionCount);

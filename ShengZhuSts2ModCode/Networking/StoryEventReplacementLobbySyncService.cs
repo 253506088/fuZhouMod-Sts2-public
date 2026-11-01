@@ -113,6 +113,12 @@ public static class StoryEventReplacementLobbySyncService
         StoryEventReplacementConfig config = message.ToConfig();
         StoryEventReplacementConfigService.ApplySelectionConfig(config, $"远端玩家 {senderId}");
         StoryEventReplacementConfigPanelService.RefreshCurrentPanel();
+        // 客户端可以即时预览修改，但最终顺序以房主为准；发起者也必须收到确认后的配置。
+        if (_registeredNetService?.Type == NetGameType.Host)
+        {
+            _registeredNetService.SendMessage(ShengZhuStoryEventReplacementLobbyConfigMessage.FromConfig(
+                StoryEventReplacementConfigService.CurrentSelectionConfig));
+        }
         MainFile.Logger.Info($"【选人事件池联机】已接收远端配置：发送者={senderId}，{config}。");
     }
 

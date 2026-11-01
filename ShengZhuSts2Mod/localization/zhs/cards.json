@@ -354,11 +354,11 @@
   "SHENGZHUSTS2MOD-HISTORY_BOOK_SHOP_RESTOCK_PREVIEW_CARD.title": "商店补货",
   "SHENGZHUSTS2MOD-HISTORY_BOOK_SHOP_RESTOCK_PREVIEW_CARD.description": "本次商店商品售出后会补货，删牌服务也不会在成功删牌后关闭。\n\n消耗残卷次数：*6*。",
   "SHENGZHUSTS2MOD-CURSE_TOHRU.title": "特鲁",
-  "SHENGZHUSTS2MOD-CURSE_TOHRU.description": "抽到时，攻击牌费用增加 1 点。\n代价：{TaxState}。\n回合结束时，若你本回合没有打出攻击牌，失去 6 点生命。",
+  "SHENGZHUSTS2MOD-CURSE_TOHRU.description": "抽到时，下一张攻击牌费用增加 1 点。\n代价：{TaxState}。\n回合结束时仍在手中，且本回合没有打出攻击牌，失去 6 点生命。",
   "SHENGZHUSTS2MOD-CURSE_JACKIE.title": "成龙",
   "SHENGZHUSTS2MOD-CURSE_JACKIE.description": "回合结束时，获得 1 层 *虚弱*。",
   "SHENGZHUSTS2MOD-CURSE_JADE.title": "小玉",
   "SHENGZHUSTS2MOD-CURSE_JADE.description": "抽到时，丢弃 1 张其他手牌，并将 1 张 *晕眩* 放到抽牌堆顶。",
   "SHENGZHUSTS2MOD-CURSE_BLACK.title": "布莱克",
-  "SHENGZHUSTS2MOD-CURSE_BLACK.description": "抽到时，技能牌费用增加 1 点。\n代价：{TaxState}。\n回合结束时，获得 1 层 *易伤*。"
+  "SHENGZHUSTS2MOD-CURSE_BLACK.description": "抽到时，下一张技能牌费用增加 1 点。\n代价：{TaxState}。\n回合结束时仍在手中，获得 1 层 *易伤*（支付代价也不免除）。"
 }

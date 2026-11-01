@@ -1,4 +1,6 @@
 using System.Reflection;
+using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Entities.Cards;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Nodes.Combat;
@@ -18,7 +20,6 @@ public static class ShengZhuTrueFormVisualService
 {
     private const string StatueNodeName = "%ShengZhuStatueVisual";
     private const string TrueFormNodeName = "%ShengZhuTrueFormVisual";
-    private const string IdleStartedMetaName = "shengzhu_true_form_idle_started";
     private static readonly FieldInfo? MerchantPlayersField = typeof(NMerchantRoom).GetField("_players", BindingFlags.Instance | BindingFlags.NonPublic);
 
     /// <summary>
@@ -152,8 +153,8 @@ public static class ShengZhuTrueFormVisualService
     /// <returns>同时存在石板和真身节点时返回 true。</returns>
     public static bool HasShengZhuVisuals(Node? node)
     {
-        return node?.GetNodeOrNull<Node2D>(StatueNodeName) != null
-               && node.GetNodeOrNull<Node2D>(TrueFormNodeName) != null;
+        return ShengZhuPresentation.Find(node, "ShengZhuStatueVisual") != null
+               && ShengZhuPresentation.Find(node, "ShengZhuTrueFormVisual") != null;
     }
 
     /// <summary>
@@ -227,108 +228,42 @@ public static class ShengZhuTrueFormVisualService
     /// <param name="showTrueForm">是否显示真身。</param>
     private static void RefreshVisualRoot(Node? visualRoot, bool showTrueForm)
     {
-        Node2D? statueVisual = visualRoot?.GetNodeOrNull<Node2D>(StatueNodeName);
-        Node2D? trueFormVisual = visualRoot?.GetNodeOrNull<Node2D>(TrueFormNodeName);
-        if (statueVisual == null || trueFormVisual == null)
-        {
-            MainFile.Logger.Info("【圣主真身】未找到石板或真身视觉节点，跳过外观切换。");
-            return;
-        }
-
-        statueVisual.Visible = !showTrueForm;
-        trueFormVisual.Visible = showTrueForm;
-
-        if (showTrueForm)
-        {
-            StartIdleAnimation(trueFormVisual);
-        }
+        ShengZhuPresentation.Refresh(visualRoot, showTrueForm);
     }
 
-    /// <summary>
-    /// 启动最小版待机动画：腿脚保持站定，上半身呼吸，头部、手臂和尾巴小幅摆动。
-    /// </summary>
-    /// <param name="trueFormVisual">真身根节点。</param>
-    private static void StartIdleAnimation(Node2D trueFormVisual)
+    /// <summary>将动作路由到所属玩家的有效战斗节点。</summary>
+    public static void Play(Player? player, string pose)
     {
-        if (trueFormVisual.HasMeta(IdleStartedMetaName))
-        {
-            return;
-        }
-
-        trueFormVisual.SetMeta(IdleStartedMetaName, true);
-        StartUpperBodyBreathing(trueFormVisual.GetNodeOrNull<Node2D>("%Bone_Torso"), 24f, 1.45f);
-        StartUpperBodyBreathing(trueFormVisual.GetNodeOrNull<Node2D>("%Bone_ChestCrystal"), 24f, 1.35f);
-        StartUpperBodyBreathing(trueFormVisual.GetNodeOrNull<Node2D>("%Bone_HeadNeck"), 24f, 1.35f);
-        StartUpperBodyBreathing(trueFormVisual.GetNodeOrNull<Node2D>("%Bone_LeftUpperArm"), 20f, 1.55f);
-        StartUpperBodyBreathing(trueFormVisual.GetNodeOrNull<Node2D>("%Bone_LeftForearmHand"), 16f, 1.65f);
-        StartUpperBodyBreathing(trueFormVisual.GetNodeOrNull<Node2D>("%Bone_RightUpperArm"), 20f, 1.50f);
-        StartUpperBodyBreathing(trueFormVisual.GetNodeOrNull<Node2D>("%Bone_RightForearmHand"), 16f, 1.60f);
-        StartRotationLoop(trueFormVisual.GetNodeOrNull<Node2D>("%Bone_Torso"), -1.0f, 2.0f);
-        StartRotationLoop(trueFormVisual.GetNodeOrNull<Node2D>("%Bone_HeadNeck"), 1.1f, 1.9f);
-        StartRotationLoop(trueFormVisual.GetNodeOrNull<Node2D>("%Bone_LeftUpperArm"), -3.0f, 1.9f);
-        StartRotationLoop(trueFormVisual.GetNodeOrNull<Node2D>("%Bone_LeftForearmHand"), -2.2f, 1.8f);
-        StartRotationLoop(trueFormVisual.GetNodeOrNull<Node2D>("%Bone_RightUpperArm"), 3.0f, 1.85f);
-        StartRotationLoop(trueFormVisual.GetNodeOrNull<Node2D>("%Bone_RightForearmHand"), 2.2f, 1.75f);
-        StartRotationLoop(trueFormVisual.GetNodeOrNull<Node2D>("%Bone_Tail"), 2.5f, 2.0f);
+        if (player?.Character is not ShengZhu) return;
+        NCombatRoom? room = NCombatRoom.Instance;
+        if (room == null || !GodotObject.IsInstanceValid(room)) return;
+        NCreature? node = room.GetCreatureNode(player.Creature);
+        if (node == null || !GodotObject.IsInstanceValid(node)) return;
+        ShengZhuPresentation.Refresh(node.Visuals, ShengZhuFormService.IsHumanForm(player));
+        ShengZhuPresentation.Play(node.Visuals, pose);
     }
 
-    /// <summary>
-    /// 创建上半身呼吸循环，只移动腰部以上骨骼，避免脚部跟着上下悬浮。
-    /// </summary>
-    /// <param name="node">需要参与呼吸的上半身骨骼节点。</param>
-    /// <param name="offsetY">局部坐标里的纵向移动距离。</param>
-    /// <param name="seconds">单段动画时间。</param>
-    private static void StartUpperBodyBreathing(Node2D? node, float offsetY, double seconds)
+    /// <summary>按明确卡牌来源区分电眼、龙焰和普通出牌，未知技能使用聚气动作。</summary>
+    public static void PlayCard(CardModel card)
     {
-        if (node == null)
-        {
-            return;
-        }
-
-        StartPositionLoop(node, node.Position, offsetY, seconds);
+        string id = card.Id.Entry;
+        string pose = id is "LASER_EYES" or "PIG_TALISMAN_CARD" ? "laser"
+            : id == "DRAGON_TALISMAN_CARD" ? "flame"
+            : card.Type == CardType.Power ? "buff"
+            : card.Type == CardType.Attack ? (id.Contains("AFU") || id.Contains("AXE") ? "heavy" : "attack")
+            : card.DynamicVars.ContainsKey("Block") || id.Contains("DEFEND") || id.Contains("SHIELD") ? "defend" : "cast";
+        Play(card.Owner, pose);
     }
 
-    /// <summary>
-    /// 创建局部位置循环。
-    /// </summary>
-    /// <param name="node">要移动的节点。</param>
-    /// <param name="basePosition">节点原始位置。</param>
-    /// <param name="offsetY">纵向移动距离。</param>
-    /// <param name="seconds">单段动画时间。</param>
-    private static void StartPositionLoop(Node2D node, Vector2 basePosition, float offsetY, double seconds)
+    /// <summary>战斗获胜后让仍存活的圣主短暂收势；即将离场时不会额外阻塞奖励。</summary>
+    public static void PlayVictory()
     {
-        Tween tween = node.CreateTween().SetLoops();
-        tween.TweenProperty(node, "position", basePosition + new Vector2(0f, -offsetY), seconds)
-            .SetTrans(Tween.TransitionType.Sine)
-            .SetEase(Tween.EaseType.InOut);
-        tween.TweenProperty(node, "position", basePosition, seconds)
-            .SetTrans(Tween.TransitionType.Sine)
-            .SetEase(Tween.EaseType.InOut);
-    }
-
-    /// <summary>
-    /// 创建小幅旋转循环。
-    /// </summary>
-    /// <param name="node">要旋转的骨骼节点。</param>
-    /// <param name="degrees">旋转角度。</param>
-    /// <param name="seconds">单段动画时间。</param>
-    private static void StartRotationLoop(Node2D? node, float degrees, double seconds)
-    {
-        if (node == null)
+        NCombatRoom? room = NCombatRoom.Instance;
+        if (room == null || !GodotObject.IsInstanceValid(room)) return;
+        foreach (NCreature node in room.CreatureNodes)
         {
-            return;
+            if (node.Entity?.Player?.Character is ShengZhu && node.Entity.IsAlive)
+                ShengZhuPresentation.Play(node.Visuals, "victory");
         }
-
-        float baseRotation = node.RotationDegrees;
-        Tween tween = node.CreateTween().SetLoops();
-        tween.TweenProperty(node, "rotation_degrees", baseRotation + degrees, seconds)
-            .SetTrans(Tween.TransitionType.Sine)
-            .SetEase(Tween.EaseType.InOut);
-        tween.TweenProperty(node, "rotation_degrees", baseRotation - degrees, seconds)
-            .SetTrans(Tween.TransitionType.Sine)
-            .SetEase(Tween.EaseType.InOut);
-        tween.TweenProperty(node, "rotation_degrees", baseRotation, seconds)
-            .SetTrans(Tween.TransitionType.Sine)
-            .SetEase(Tween.EaseType.InOut);
     }
 }
